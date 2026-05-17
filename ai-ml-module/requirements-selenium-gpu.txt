@@ -1,0 +1,13 @@
+# Optional GPU / parallel helpers (NOT required for Selenium scraping)
+# Install base first: pip install -r requirements-selenium.txt
+#
+# CuPy: pick ONE wheel matching your CUDA version from https://docs.cupy.dev/en/stable/install.html
+# Example CUDA 12.x:
+#   pip install cupy-cuda12x
+# Dask:
+#   pip install dask[complete]
+# RAM monitoring (recommended on laptops):
+#   pip install psutil
+
+psutil>=5.9.0
+dask>=2024.1.0

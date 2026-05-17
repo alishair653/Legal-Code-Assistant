@@ -40,5 +40,12 @@ __pycache__/
 *.py[cod]
 ai-ml-module/.venv/
 
-# large local data (uncomment if you never want PDFs in git)
-# legal-data/raw-pdfs/*.pdf
+# large local data — PDFs excluded from git
+legal-data/raw-pdfs/
+
+# Selenium scraper resume checkpoint (local only)
+**/.pakistan_code_scraper_state.json
+**/.pakistan_code_scraper_state.worker-*.json
+**/.pakistan_code_scraper_state.json.tmp
+**/.book_stats.json
+**/.book_plan_cache_*.json

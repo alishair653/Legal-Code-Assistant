@@ -1,0 +1,15 @@
+{
+  "_comment": "Defaults match pakistancode.gov.pk English index HTML.",
+  "index_url": "https://pakistancode.gov.pk/english/index.php",
+  "card_container_css": "section.all__laws div.col-lg-3",
+  "hover_target_css": "div.cus__card",
+  "category_select_css": null,
+  "year_select_css": null,
+  "category_select_index": 0,
+  "year_select_index": 1,
+  "search_button_xpath": "//button[contains(translate(normalize-space(.),'SEARCH','search'),'search')] | //input[@type='submit' and contains(translate(@value,'SEARCH','search'),'search')]",
+  "print_download_link_xpath": "//a[contains(translate(.,'PDF','pdf'),'pdf') or contains(translate(.,'PRINT','print'),'print') or contains(translate(.,'DOWNLOAD','download'),'download')]",
+  "post_search_wait_seconds": 6.0,
+  "between_requests_seconds": 2.0,
+  "download_wait_timeout_sec": 240
+}

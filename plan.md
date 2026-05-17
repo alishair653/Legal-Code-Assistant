@@ -1,33 +1,72 @@
+﻿
 
-
-markdown#  Legal Code Assistant - 30-Day Master Plan
+# Legal Code Assistant - 30-Day Master Plan
 
 **Project:** AI-Powered Pakistani Legal Assistant
 **Duration:** 30 Days (Start: Monday)
 **Daily Hours:** 8-10 hours
 **Goal:** Production SaaS + FYP A+ Grade
+---
+
+## Current Status (as of May 2026)
+
+| Step | Task | Status |
+|------|------|--------|
+| Step 1 | Project setup (Next.js 16, monorepo, Shadcn/UI, dependencies) | ✅ DONE |
+| Step 2 | Create accounts (Groq, Supabase, Qdrant, Vercel) | ⏳ In Progress |
+| Step 3 | Data collection — 2,464 PDFs downloaded from pakistancode.gov.pk via Selenium scraper | ✅ DONE |
+| Step 4 | Extract text from PDFs into JSON | ❌ TODO ← NEXT |
+| Step 5 | Create vector embeddings + upload to Qdrant | ❌ TODO |
+| Step 8   | Frontend UI (Next.js App Router, all pages, Navy+Gold theme, Zustand, Voice input) | ✅ DONE |
+| Steps 6,7,9+ | RAG API, Auth, Features, Payments, Deploy | ❌ TODO |
+
+**Next immediate action:** Run Step 4 — extract text from 2,464 PDFs into JSON using pdfplumber
+
+---
+
+## PDF Data Summary (legal-data/raw-pdfs/ — 2,464+ files so far, scraping ongoing)
+
+| Category | Count |
+|----------|-------|
+| Criminal Laws | 449 |
+| Civil Laws | 401 |
+| Family Laws | 300 |
+| Labour Laws | 227 |
+| Service Laws | 219 |
+| Police Laws | 212 |
+| Companies Laws | 187 |
+| Land/Property Laws | 118 |
+| Islamic/Religious Laws | 108 |
+| Banking/Financial Laws | 74 |
+| Law of Evidence | 62 |
+| Other categories | 107 |
+| **Total** | **2,464** |
+
+---
+
 
 ## ---
 
-## ##  Project Overview
+##  Project Overview
 
-## ### What We're Building
+### What We're Building
 - ✅ AI chatbot for Pakistani law (PPC, CrPC, QSO)
 - ✅ FIR Generator (auto-generate FIR from user story)
 - ✅ Voice Assistant (speak in Roman Urdu/English)
 - ✅ Case Outcome Predictor (bail/conviction probability)
 - ✅ Document Analyzer (upload FIR/contract → AI analysis)
 - ✅ Payment System (JazzCash integration)
+- ✅ Image Vision in Chat (paste image → AI reads document via Groq Vision, extracts text, gives legal analysis)
 
-## ### Tech Stack
-Frontend: Next.js 14 + TypeScript + Tailwind CSS + Shadcn/UI
-Backend: Next.js API Routes + Supabase + Qdrant + Neo4j
+### Tech Stack
+Frontend: Next.js 16 + TypeScript + Tailwind CSS + Shadcn/UI
+Backend: Next.js API Routes + Supabase (+ pgvector) + Qdrant (Neo4j dropped — replaced by Supabase section_relations table)
 AI: Groq (Llama 3.1-70B) - FREE
 Payments: JazzCash Business API
 Deploy: Vercel (Frontend) + Supabase Cloud (Backend)
-Tools: Cursor AI (for coding)
+Tools: Claude Code (AI coding assistant)
 
-## ### Success Targets
+### Success Targets
 - ✅ Production app working
 - ✅ 1000+ legal sections indexed
 - ✅ 6 advanced features complete
@@ -38,22 +77,22 @@ Tools: Cursor AI (for coding)
 
 ## ---
 
-## ##  HOW TO USE THIS PLAN
+##  HOW TO USE THIS PLAN
 
-### With Cursor AI
-- Open Cursor AI editor
+### With Claude Code
+- Open Claude Code
 - Read each step below
 - Copy the **Cursor Prompt** from that step
 
-- Paste in Cursor's AI chat
-- Let Cursor generate the code
+- Paste in Claude Code chat
+- Let Claude Code generate the code
 - Review and run the code
 
-## ### Manual Tasks
+### Manual Tasks
 - Steps marked **"MANUAL"** → You do yourself
-- Steps marked **"Cursor Prompt"** → Give to Cursor AI
+- Steps marked **"Cursor Prompt"** → Give to Claude Code
 
-## ### Time Management
+### Time Management
 - Each step shows estimated time
 - Work 8-10 hours daily
 - Take 10-min breaks every 2 hours
@@ -61,23 +100,29 @@ Tools: Cursor AI (for coding)
 
 ## ---
 
-## ##  COMPLETE STEP-BY-STEP BREAKDOWN
+##  COMPLETE STEP-BY-STEP BREAKDOWN
 
 ## ---
 
-## STEP 1: Initial Setup (Day 1 - 3 hours)
+## STEP 1: Initial Setup (Day 1 - 3 hours) — ✅ COMPLETE
 
-## ### What You'll Do
+> **STATUS: ALREADY DONE**
+> Monorepo is set up with Next.js 16, TypeScript, Tailwind, Shadcn/UI, and all dependencies.
+> Structure: frontend/, ai-ml-module/, legal-data/, backend-core/
+> **Skip to STEP 2.**
+>
+
+### What You'll Do
 Install tools, create Next.js project, setup folders
 
-## ### Prerequisites
+### Prerequisites
 Make sure installed:
-## - ✅ Node.js 18+ (check: `node --version`)
-## - ✅ Git (check: `git --version`)
-- ✅ VS Code or Cursor AI
-## - ✅ Python 3.8+ (check: `python --version`)
+- ✅ Node.js 18+ (check: `node --version`)
+- ✅ Git (check: `git --version`)
+- ✅ VS Code or Claude Code
+- ✅ Python 3.8+ (check: `python --version`)
 
-## ### Manual Steps
+### Manual Steps
 
 ## **1. Create Next.js Project**
 ## ```bash
@@ -101,7 +146,7 @@ cd legal-code-assistant
 # Core packages
 npm install @supabase/supabase-js groq-sdk @qdrant/js-client-rest
 npm install lucide-react sonner zustand framer-motion
-npm install neo4j-driver langchain recharts date-fns
+langchain recharts date-fns
 
 # Shadcn UI setup
 npx shadcn-ui@latest init
@@ -114,10 +159,10 @@ avatar select separator
 
 ## **3. Create Folder Structure**
 ## ```bash
-mkdir -p data/raw-pdfs
-mkdir -p data/scripts
-mkdir -p data/extracted
-mkdir -p data/processed
+mkdir -p legal-data/raw-pdfs
+mkdir -p legal-data/scripts
+mkdir -p legal-data/extracted
+mkdir -p legal-data/processed
 mkdir -p lib
 mkdir -p components
 ## ```
@@ -150,10 +195,7 @@ Create `.env.local` file in root folder:
 ## QDRANT_URL=
 ## QDRANT_API_KEY=
 
-## # Neo4j
-## NEO4J_URI=
-NEO4J_USERNAME=neo4j
-## NEO4J_PASSWORD=
+# Neo4j removed
 
 # JazzCash (add later)
 ## JAZZCASH_MERCHANT_ID=
@@ -168,9 +210,9 @@ NEXT_PUBLIC_URL=http://localhost:3000
 
 ## ---
 
-## STEP 2: Create All Accounts (Day 1 - 2 hours)
+## STEP 2: Create All Accounts (Day 1 - 2 hours) — ⏳ IN PROGRESS
 
-## ### What You'll Do
+### What You'll Do
 Sign up for all free services we need
 
 ### Manual Steps (Do these now)
@@ -202,15 +244,7 @@ Sign up for all free services we need
 - Copy `Cluster URL` → Paste in `.env.local` as `QDRANT_URL`
 - Copy `API Key` → Paste as `QDRANT_API_KEY`
 
-**4. Neo4j Aura (FREE Graph DB)**
-- Go to: https://neo4j.com/cloud/aura-free/
-- Sign up
-## - Create Free Instance
-- Choose region closest to you
-- Download credentials (IMPORTANT: save the password!)
-- Copy `URI` → Paste in `.env.local` as `NEO4J_URI`
-- Username is always `neo4j`
-- Copy password → Paste as `NEO4J_PASSWORD`
+**4. Neo4j** — REMOVED (replaced by Supabase relational tables)
 
 **5. Vercel (FREE Hosting)**
 - Go to: https://vercel.com
@@ -219,7 +253,7 @@ Sign up for all free services we need
 
 **6. Create GitHub Repository**
 - Go to: https://github.com/new
-## - Name: `legal-code-assistant`
+- Name: `legal-code-assistant`
 - Public repository
 - Don't initialize with README
 - Create repository
@@ -230,12 +264,28 @@ Sign up for all free services we need
 
 ## ---
 
-## STEP 3: Data Collection (Day 1-2 - 5 hours)
+## STEP 3: Data Collection (Day 1-2 - 5 hours) — ✅ COMPLETE (2,464 PDFs downloaded via Selenium scraper)
 
-## ### What You'll Do
+> **STATUS: IN PROGRESS — SCRAPING ONGOING**
+> Scraper: ai-ml-module/scripts/download_pakistan_code_pdfs.py
+> Downloaded so far: 2,464+ PDFs (partial — only some site tiles/books scraped)
+> Output folder: legal-data/raw-pdfs/
+>
+> The website (pakistancode.gov.pk) has multiple "books"/tiles on its homepage.
+> Each tile = one compilation (Estacode, List of Federal Laws, Rules of Business,
+> Constitution, etc.), each with many category x year combinations.
+> Current state covers: Estacode, List_of_Federal_Laws, Rules_of_Business,
+> Constitution, and tile_0 — but more books may still be pending.
+>
+> **Do NOT start Step 4 until scraping is fully complete.**
+> Run scraper with --status-only to check remaining work:
+> cd ai-ml-module && python scripts/download_pakistan_code_pdfs.py --output ../legal-data/raw-pdfs --status-only
+>
+
+### What You'll Do
 Download Pakistani law PDFs manually
 
-## ### MANUAL WORK - YOU MUST DO THIS
+### MANUAL WORK - YOU MUST DO THIS
 
 **Option A: Download PDFs (Recommended)**
 
@@ -243,23 +293,23 @@ Download Pakistani law PDFs manually
 - Go to: http://www.pakistancode.gov.pk/
 - Navigate: "Laws" → "Pakistan Penal Code 1860"
 - Download complete PDF
-- Save as: `data/raw-pdfs/ppc.pdf`
+- Save as: `legal-data/raw-pdfs/ppc.pdf`
 - Size: ~5-10 MB
-## - Sections: 1-511
+- Sections: 1-511
 
 - **Code of Criminal Procedure (CrPC 1898)**
 - Same website
 - Navigate: "Laws" → "Code of Criminal Procedure 1898"
 - Download complete PDF
-- Save as: `data/raw-pdfs/crpc.pdf`
-## - Sections: 1-565
+- Save as: `legal-data/raw-pdfs/crpc.pdf`
+- Sections: 1-565
 
 - **Qanun-e-Shahadat Order (QSO 1984)**
 - Same website
 - Navigate: "Ordinances" → "Qanun-e-Shahadat Order 1984"
 - Download complete PDF
-- Save as: `data/raw-pdfs/qso.pdf`
-## - Articles: 1-165
+- Save as: `legal-data/raw-pdfs/qso.pdf`
+- Articles: 1-165
 
 **Option B: Alternative Sources (if main site down)**
 
@@ -275,15 +325,15 @@ Try these:
 If PDFs not available:
 - Copy text section by section from websites
 - Save in text files:
-data/raw-text/ppc.txt
-data/raw-text/crpc.txt
-data/raw-text/qso.txt
+legal-data/raw-text/ppc.txt
+legal-data/raw-text/crpc.txt
+legal-data/raw-text/qso.txt
 - Format each section clearly
 
 **Verification**
 After download, check:
 ## ```bash
-ls -lh data/raw-pdfs/
+ls -lh legal-data/raw-pdfs/
 # Should show:
 # ppc.pdf (5-10 MB)
 # crpc.pdf (3-5 MB)
@@ -294,22 +344,25 @@ ls -lh data/raw-pdfs/
 
 ## ---
 
-## STEP 4: Extract Text from PDFs (Day 2 - 4 hours)
+## STEP 4: Extract Text from PDFs (Day 2-3 - 6 hours)
 
-## ### What You'll Do
-Use Python script to extract sections from PDFs
+### What You'll Do
+Batch-extract text from ALL PDFs in legal-data/raw-pdfs/ (2,464+ files across all law categories).
 
-## ### Manual: Install Python Libraries
+> **PREREQUISITE:** Step 3 scraping must be fully complete first.
+> Check: cd ai-ml-module and run: python scripts/download_pakistan_code_pdfs.py --output ../legal-data/raw-pdfs --status-only
+
+### Manual: Install Python Libraries
 ## ```bash
 pip install pdfplumber pandas
 # or
 pip3 install pdfplumber pandas
 ## ```
 
-## ### Cursor Prompt
+### Cursor Prompt
 
-Copy this **exact prompt** and paste in Cursor AI:
-Create a comprehensive Python script at data/scripts/extract_sections.py that extracts legal
+Copy this **exact prompt** and paste in Claude Code:
+Create a comprehensive Python script at ai-ml-module/scripts/extract_sections.py that extracts legal
 sections from PDF files.
 ## Requirements:
 
@@ -342,10 +395,10 @@ Fix line breaks
 
 Save output:
 
-data/extracted/ppc_sections.json
-data/extracted/crpc_sections.json
-data/extracted/qso_sections.json
-data/processed/all_legal_data.json (combined)
+legal-data/extracted/ppc_sections.json
+legal-data/extracted/crpc_sections.json
+legal-data/extracted/qso_sections.json
+legal-data/processed/all_legal_data.json (combined)
 
 
 JSON structure for each section:
@@ -383,11 +436,11 @@ File locations
 
 Make code clean, well-commented, production-ready.
 
-## ### Manual Steps
+### Manual Steps
 
 **1. Run the Script**
 ## ```bash
-cd data/scripts
+cd ai-ml-module/scripts
 python extract_sections.py
 ## ```
 
@@ -395,27 +448,27 @@ python extract_sections.py
 Processing PPC...
 ✓ Extracted text from 250 pages
 ✓ Parsed 511 sections
-Saved to data/extracted/ppc_sections.json
+Saved to legal-data/extracted/Criminal_Laws.json
 Processing CrPC...
 ✓ Extracted text from 200 pages
 ✓ Parsed 565 sections
-Saved to data/extracted/crpc_sections.json
+Saved to legal-data/extracted/Civil_Laws.json
 Processing QSO...
 ✓ Extracted text from 80 pages
 ✓ Parsed 165 sections
-Saved to data/extracted/qso_sections.json
+Saved to legal-data/extracted/Family_Laws.json ... (all categories)
 
 ## ✅ COMPLETE
-Total: 1241 sections
-Combined: data/processed/all_legal_data.json
+Total sections: 50,000-200,000+ (from all 2,464+ PDFs)
+Combined: legal-data/processed/all_legal_data.json
 
 ## **3. Verify Output**
 ## ```bash
 # Check if files created
-ls data/processed/
+ls legal-data/processed/
 
 # View first section
-cat data/processed/all_legal_data.json | head -n 30
+cat legal-data/processed/all_legal_data.json | head -n 30
 ## ```
 
 **If extraction fails:**
@@ -430,20 +483,20 @@ cat data/processed/all_legal_data.json | head -n 30
 
 ## STEP 5: Create Vector Embeddings (Day 2-3 - 4 hours)
 
-## ### What You'll Do
+### What You'll Do
 Convert text to vectors and upload to Qdrant
 
-## ### Manual: Install Python Libraries
+### Manual: Install Python Libraries
 ## ```bash
 pip install sentence-transformers qdrant-client python-dotenv tqdm
 ## ```
 
-## ### Cursor Prompt
-Create data/scripts/create_embeddings.py that creates vector embeddings and uploads to
+### Cursor Prompt
+Create ai-ml-module/scripts/create_embeddings.py that creates vector embeddings and uploads to
 ## Qdrant Cloud.
 ## Requirements:
 
-Load data/processed/all_legal_data.json
+Load legal-data/processed/all_legal_data.json
 Import libraries:
 
 sentence_transformers (SentenceTransformer)
@@ -453,11 +506,11 @@ dotenv (load environment variables)
 tqdm (progress bar)
 
 
-Load environment variables from .env file (create data/scripts/.env with QDRANT_URL and
+Load environment variables from .env file (create ai-ml-module/scripts/.env with QDRANT_URL and
 ## QDRANT_API_KEY)
 ## Initialize:
 
-Model: SentenceTransformer('all-MiniLM-L6-v2')
+Model: SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
 Qdrant client with URL and API key
 
 
@@ -508,11 +561,11 @@ Test query result (search for "murder")
 
 Make it robust with detailed logging.
 
-## ### Manual Steps
+### Manual Steps
 
-**1. Create .env file in data/scripts/**
+**1. Create .env file in ai-ml-module/scripts/**
 ## ```bash
-cd data/scripts
+cd ai-ml-module/scripts
 nano .env
 # or use any text editor
 
@@ -528,7 +581,7 @@ python create_embeddings.py
 
 ## **3. Expected Output**
 Loading sections... ✓ 1241 sections
-Initializing model... ✓ all-MiniLM-L6-v2
+Initializing model... ✓ paraphrase-multilingual-MiniLM-L12-v2
 Connecting to Qdrant... ✓ Connected
 Creating collection... ✓ legal_sections
 Creating embeddings:
@@ -561,10 +614,10 @@ Section 300 PPC - Culpable homicide (score: 0.76)
 
 ## STEP 6: Build Search Function (Day 3 - 3 hours)
 
-## ### What You'll Do
+### What You'll Do
 Create TypeScript function to search Qdrant
 
-## ### Cursor Prompt
+### Cursor Prompt
 Create lib/qdrant.ts with vector search functionality.
 ## Requirements:
 
@@ -616,7 +669,7 @@ SearchResult type
 
 Make it type-safe and production-ready.
 
-## ### Manual Steps
+### Manual Steps
 
 **1. Test the Function**
 
@@ -666,14 +719,14 @@ Culpable homicide
 
 ## STEP 7: Build RAG Chat API (Day 3-4 - 4 hours)
 
-## ### What You'll Do
+### What You'll Do
 Create API that combines search + AI generation
 
-## ### Cursor Prompt
+### Cursor Prompt
 Create app/api/chat/route.ts with RAG (Retrieval-Augmented Generation) implementation.
 ## Requirements:
 
-Next.js 14 App Router API route
+Next.js 16 App Router API route
 
 Handle POST requests only
 Request body: { message: string }
@@ -731,7 +784,7 @@ TypeScript types for all functions
 
 Make it production-ready with comprehensive error handling.
 
-## ### Manual Steps
+### Manual Steps
 
 **1. Test the API**
 ## ```bash
@@ -770,12 +823,69 @@ mein likha hai.",
 
 ## ---
 
-## STEP 8: Build Chat UI (Day 4-5 - 6 hours)
+## STEP 7B: Image Vision in Chat (Day 4 - 2 hours)
 
-## ### What You'll Do
+### What We're Building
+When the user pastes or uploads an image in the chat (screenshot of FIR, court notice, contract, legal document), the system:
+1. Detects the image in the request
+2. Sends it to a **Groq Vision model** (free) which does OCR + legal context understanding in one call
+3. Runs RAG on the extracted legal text to find relevant sections
+4. Returns a full legal analysis of the document in the image
+
+**Why Groq Vision (not separate OCR library):**
+- Single API call = OCR + analysis combined
+- `llama-3.2-11b-vision-preview` is FREE on Groq
+- No Tesseract.js or extra dependencies
+- Better accuracy for legal document structure
+
+### Frontend (Already Done ✅)
+- Ctrl+V paste captures image as base64
+- Image attach button for file picker
+- Preview thumbnail before sending
+- Image stored in chatStore message with `image?: string` field
+- ChatMessage displays attached images
+
+### API Changes Needed (Step when backend is built)
+
+**Update `app/api/chat/route.ts`:**
+```
+POST body: { message: string, image?: string (base64 data URL) }
+
+If image present:
+  → Use model: "llama-3.2-11b-vision-preview"
+  → Send as vision message: { role: "user", content: [{ type: "image_url", image_url: { url: base64 } }, { type: "text", text: message }] }
+  → System prompt: "You are a Pakistani legal expert. First extract and read all text from this document image. Then analyze it according to PPC, CrPC, QSO and relevant Pakistani laws. Identify sections cited, flag issues, explain implications."
+
+If no image:
+  → Use model: "llama-3.1-70b-versatile" (normal text flow)
+```
+
+### Expected Behavior
+- User pastes photo of FIR → AI reads FIR, explains each PPC section, flags missing info
+- User pastes court notice → AI explains what it means, deadlines, required actions
+- User pastes contract → AI identifies risky clauses, missing protections
+- User pastes legal news article screenshot → AI explains the laws involved
+
+### Cursor Prompt (run when doing Step 7 backend)
+Update `app/api/chat/route.ts` to support vision:
+- Accept optional `image` field (base64 data URL string) in POST body
+- If image is present, use Groq model `llama-3.2-11b-vision-preview`
+- Build vision message format with image_url and text content parts
+- System prompt must instruct AI to first extract text from the image, then analyze for Pakistani law context (PPC, CrPC, QSO)
+- If no image, use existing `llama-3.1-70b-versatile` text-only flow
+- Run RAG search on extracted content regardless of input type
+- Return same response format: `{ answer, sections }`
+
+**✅ Step 7B Complete!** Image vision in chat working.
+
+## ---
+
+## STEP 8: Build Chat UI (Day 4-5 - 6 hours) — ✅ COMPLETE
+
+### What You'll Do
 Create beautiful chat interface
 
-## ### Cursor Prompt #1: Main Chat Component
+### Cursor Prompt #1: Main Chat Component
 Create app/page.tsx with a modern chat interface.
 ## Requirements:
 
@@ -839,7 +949,7 @@ Retry button on error
 
 Make it look like a professional ChatGPT-style interface.
 
-## ### Cursor Prompt #2: Layout & Styling
+### Cursor Prompt #2: Layout & Styling
 Update app/layout.tsx with professional styling.
 ## Requirements:
 
@@ -859,7 +969,7 @@ Favicon setup
 
 Make it SEO-friendly and professional.
 
-## ### Cursor Prompt #3: Example Questions Component
+### Cursor Prompt #3: Example Questions Component
 Create components/ExampleQuestions.tsx with quick start questions.
 ## Requirements:
 
@@ -880,7 +990,7 @@ Mobile responsive
 
 Make it engaging and user-friendly.
 
-## ### Manual Steps
+### Manual Steps
 
 ## **1. Start Dev Server**
 ## ```bash
@@ -892,7 +1002,7 @@ http://localhost:3000
 
 ## **3. Test Chat**
 - Type: "What is murder punishment?"
-## - Press Enter
+- Press Enter
 - Wait for response
 - Check if sections display
 - Try clicking a section badge
@@ -904,10 +1014,10 @@ http://localhost:3000
 
 ## STEP 9: Authentication Setup (Day 5-6 - 5 hours)
 
-## ### What You'll Do
+### What You'll Do
 Add user login/signup with Supabase
 
-## ### Manual: Create Database Tables
+### Manual: Create Database Tables
 
 - Go to Supabase Dashboard
 - Click SQL Editor
@@ -976,7 +1086,7 @@ ON usage FOR INSERT
 WITH CHECK (auth.uid() = user_id);
 ## ```
 
-## ### Cursor Prompt #1: Supabase Client
+### Cursor Prompt #1: Supabase Client
 Create lib/supabase.ts with Supabase client and helper functions.
 ## Requirements:
 
@@ -1001,7 +1111,7 @@ Export everything
 
 Make it type-safe and well-documented.
 
-## ### Cursor Prompt #2: Auth Page
+### Cursor Prompt #2: Auth Page
 Create app/auth/page.tsx with authentication UI.
 ## Requirements:
 
@@ -1035,7 +1145,7 @@ Mobile responsive
 Make it clean and user-friendly.
 
 
-## ### Cursor Prompt #3: Protected Navbar
+### Cursor Prompt #3: Protected Navbar
 Create components/Navbar.tsx with user authentication state.
 ## Requirements:
 
@@ -1065,7 +1175,7 @@ Handle sign out
 
 Make it professional and smooth.
 
-## ### Manual Steps
+### Manual Steps
 
 **1. Update app/layout.tsx**
 Add `<Navbar />` before `{children}`
@@ -1084,10 +1194,10 @@ Add `<Navbar />` before `{children}`
 
 ## STEP 10: Usage Limits & Tracking (Day 6 - 3 hours)
 
-## ### What You'll Do
+### What You'll Do
 Implement free tier limits (10 queries/day)
 
-## ### Cursor Prompt
+### Cursor Prompt
 Update app/api/chat/route.ts to implement usage tracking and limits.
 ## Requirements:
 
@@ -1137,7 +1247,7 @@ Show "Sign up for 10 free queries daily"
 
 Make limiting clear and user-friendly.
 
-## ### Manual Steps
+### Manual Steps
 
 ## **1. Test Limits**
 - Create free account
@@ -1155,7 +1265,7 @@ Make limiting clear and user-friendly.
 
 ## STEP 11: FIR Generator Feature (Day 7-8 - 8 hours)
 
-## ### What You'll Do
+### What You'll Do
 Build automated FIR generation system
 
 ### Cursor Prompt #1: FIR Generation API
@@ -1324,7 +1434,7 @@ Browser download trigger
 
 Export function for use in FIR page.
 
-## ### Manual Steps
+### Manual Steps
 
 **1. Test FIR Generator**
 - Go to `/fir`
@@ -1345,10 +1455,10 @@ Export function for use in FIR page.
 
 ## STEP 12: Voice Assistant (Day 9 - 5 hours)
 
-## ### What You'll Do
+### What You'll Do
 Add voice input/output feature
 
-## ### Cursor Prompt #1: Voice Hook
+### Cursor Prompt #1: Voice Hook
 
 Create hooks/useVoiceAssistant.ts with voice functionality.
 ## Requirements:
@@ -1397,7 +1507,7 @@ TypeScript types
 
 Export custom hook.
 
-## ### Cursor Prompt #2: Voice Page
+### Cursor Prompt #2: Voice Page
 Create app/voice/page.tsx with voice interface.
 ## Requirements:
 
@@ -1451,7 +1561,7 @@ Mobile optimized
 
 Make it visually appealing and smooth.
 
-## ### Manual Steps
+### Manual Steps
 
 ## **1. Test Voice**
 - Go to `/voice`
@@ -1473,10 +1583,10 @@ Make it visually appealing and smooth.
 
 ## STEP 13: Case Predictor (Day 10 - 6 hours)
 
-## ### What You'll Do
+### What You'll Do
 Build ML-based case outcome predictor
 
-## ### Cursor Prompt #1: Predictor Logic
+### Cursor Prompt #1: Predictor Logic
 Create lib/case-predictor.ts with rule-based prediction system.
 ## Requirements:
 
@@ -1622,16 +1732,16 @@ Mobile responsive
 
 Make it data-driven and insightful.
 
-## ### Manual Steps
+### Manual Steps
 
 ## **1. Test Predictor**
 - Go to `/predictor`
-## - Select Section 302
+- Select Section 302
 - Choose "Circumstantial" evidence
 - Set 0 previous convictions
 - Set 1 witness
 - No weapon
-## - Click Predict
+- Click Predict
 - Verify probabilities make sense
 
 **✅ Step 13 Complete!** Case predictor working.
@@ -1640,10 +1750,10 @@ Make it data-driven and insightful.
 
 ## STEP 14: Document Analyzer (Day 11 - 6 hours)
 
-## ### What You'll Do
+### What You'll Do
 Upload and analyze legal documents
 
-## ### Manual: Install Library
+### Manual: Install Library
 ## ```bash
 npm install pdf-parse multer
 npm install @types/multer --save-dev
@@ -1748,7 +1858,7 @@ Mobile responsive
 
 Make it professional and thorough.
 
-## ### Manual Steps
+### Manual Steps
 
 **1. Create Sample FIR PDF**
 - Create a simple FIR in Word/Google Docs
@@ -1769,7 +1879,7 @@ Make it professional and thorough.
 
 ## STEP 15: Payment System - Part 1 (Day 12-13 - 8 hours)
 
-## ### What You'll Do
+### What You'll Do
 Integrate JazzCash payment gateway
 
 ### Manual: JazzCash Setup
@@ -1780,8 +1890,8 @@ Integrate JazzCash payment gateway
 - Complete verification
 - Get credentials:
 - Merchant ID
-## - Password
-## - Integrity Salt
+- Password
+- Integrity Salt
 
 **2. Add to .env.local**
 ## ```env
@@ -1890,7 +2000,7 @@ USING (auth.uid() = user_id);
 ## ```
 
 
-## ### Cursor Prompt #3: Payment Callback
+### Cursor Prompt #3: Payment Callback
 Create app/api/payment/callback/route.ts for JazzCash callback.
 ## Requirements:
 
@@ -1923,7 +2033,7 @@ Email user (optional)
 
 CRITICAL: Always verify hash to prevent fraud.
 
-## ### Cursor Prompt #4: Pricing Page
+### Cursor Prompt #4: Pricing Page
 Create app/pricing/page.tsx with pricing plans.
 ## Requirements:
 
@@ -1984,7 +2094,7 @@ Mobile responsive
 
 Make it conversion-optimized.
 
-## ### Manual Steps
+### Manual Steps
 
 ## **1. Test Payment Flow**
 - Go to `/pricing`
@@ -2005,10 +2115,10 @@ Make it conversion-optimized.
 
 ## STEP 16: Subscription Management (Day 14 - 4 hours)
 
-## ### What You'll Do
+### What You'll Do
 Manage user subscriptions and feature gates
 
-## ### Cursor Prompt #1: Subscription Checker
+### Cursor Prompt #1: Subscription Checker
 Create lib/subscription.ts with subscription helper functions.
 ## Requirements:
 
@@ -2050,7 +2160,7 @@ TypeScript types
 
 Export all functions.
 
-## ### Cursor Prompt #2: Feature Gates
+### Cursor Prompt #2: Feature Gates
 Create middleware.ts in root for route protection.
 ## Requirements:
 
@@ -2077,7 +2187,7 @@ Add user info to request headers
 
 Use Next.js middleware pattern.
 
-## ### Cursor Prompt #3: Upgrade Modal
+### Cursor Prompt #3: Upgrade Modal
 Create components/UpgradeModal.tsx for upgrade prompts.
 ## Requirements:
 
@@ -2099,7 +2209,7 @@ Mobile friendly
 
 Make it persuasive but not annoying.
 
-## ### Manual Steps
+### Manual Steps
 
 ## **1. Test Feature Gates**
 - Sign in with free account
@@ -2116,10 +2226,10 @@ Make it persuasive but not annoying.
 ## STEP 17: User Dashboard (Day 15 - 5 hours)
 
 
-## ### What You'll Do
+### What You'll Do
 Build comprehensive user dashboard
 
-## ### Cursor Prompt
+### Cursor Prompt
 Create app/dashboard/page.tsx with user dashboard.
 ## Requirements:
 
@@ -2173,7 +2283,7 @@ Professional analytics dashboard style
 
 Make it informative and actionable.
 
-## ### Manual Steps
+### Manual Steps
 
 ## **1. Test Dashboard**
 - Sign in
@@ -2188,10 +2298,10 @@ Make it informative and actionable.
 
 ## STEP 18: Query History (Day 15 - 3 hours)
 
-## ### What You'll Do
+### What You'll Do
 Build searchable query history
 
-## ### Cursor Prompt
+### Cursor Prompt
 Create app/history/page.tsx with query history interface.
 ## Requirements:
 
@@ -2231,7 +2341,7 @@ Mobile responsive table
 
 Make it searchable and organized.
 
-## ### Manual Steps
+### Manual Steps
 
 ## **1. Test History**
 - Ask several questions
@@ -2244,123 +2354,18 @@ Make it searchable and organized.
 
 ## ---
 
-## STEP 19: Neo4j Graph Integration (Day 16 - 6 hours)
+## STEP 19: Neo4j Graph Integration — ❌ REMOVED FROM PLAN
 
-## ### What You'll Do
-Add graph database for better relationships
-
-
-### Manual: Load Data to Neo4j
-
-**1. Go to Neo4j Browser**
-- Open your Neo4j Aura instance
-- Click "Query" tab
-
-## **2. Create Constraints**
-## ```cypher
-CREATE CONSTRAINT section_id IF NOT EXISTS
-FOR (s:Section) REQUIRE s.id IS UNIQUE;
-## ```
-
-## ### Cursor Prompt #1: Graph Import Script
-Create data/scripts/import_to_neo4j.py that imports legal data to Neo4j.
-## Requirements:
-
-Load all_legal_data.json
-Connect to Neo4j using credentials from .env
-For each section:
-
-Create node: (s:Section {id, number, title, statute, text})
-
-
-Create relationships:
-
-If section text mentions another section → [:REFERENCES]
-PPC sections → CrPC sections (procedures) → [:PROCEDURE]
-Sections → QSO articles (evidence) → [:EVIDENCE_RULE]
-Sections with similar topics → [:RELATED_TO]
-
-
-Batch processing (100 nodes at a time)
-Progress bar
-Print statistics
-Error handling
-
-Use neo4j-driver library.
-
-**Manual: Run Script**
-## ```bash
-pip install neo4j python-dotenv
-python data/scripts/import_to_neo4j.py
-## ```
-
-
-## ### Cursor Prompt #2: Graph Query Functions
-Create lib/neo4j.ts with graph query functions.
-## Requirements:
-
-Connect to Neo4j
-## Functions:
-
-findRelatedSections(sectionId: string)
-
-Returns sections connected by any relationship
-Max depth: 2
-
-
-getProcedureChain(ppcSection: string)
-
-Finds CrPC procedures for PPC section
-
-
-getEvidenceRequirements(section: string)
-
-Finds QSO articles related to section
-
-
-getSectionPath(from: string, to: string)
-
-Finds shortest path between sections
-
-
-
-
-Return structured data
-Connection pooling
-Error handling
-TypeScript types
-
-Export all functions.
-
-### Cursor Prompt #3: Update Chat API
-Enhance app/api/chat/route.ts with graph data.
-After RAG search:
-
-Call findRelatedSections for each result
-Include related sections in context
-Mention in system prompt: "Also consider these related sections"
-
-Return related_sections in response
-
-This improves answer quality.
-
-## ### Manual Steps
-
-## **1. Test Graph Queries**
-- Ask about Section 302
-- Verify related sections appear
-- Check procedure chain shows CrPC sections
-
-**✅ Step 19 Complete!** Graph database integrated.
-
-## ---
-
+> **This step has been dropped.** Neo4j adds unnecessary complexity for FYP scope.
+> Section relationships (cross-references, related laws) will be handled via
+> Supabase relational tables and implemented later if needed.
+> Supabase replacement: a section_relations table with (from_id, to_id, relation_type).
 ## STEP 20: Performance Optimization (Day 17 - 4 hours)
 
-## ### What You'll Do
+### What You'll Do
 Optimize speed and caching
 
-## ### Cursor Prompt #1: Add Caching
+### Cursor Prompt #1: Add Caching
 Create lib/cache.ts with response caching.
 ## Requirements:
 
@@ -2396,7 +2401,7 @@ Add header: X-Cache-Status (hit/miss)
 
 Keep cache fresh while reducing API calls.
 
-## ### Cursor Prompt #3: Add Rate Limiting
+### Cursor Prompt #3: Add Rate Limiting
 Install Upstash Redis: npm install @upstash/ratelimit @upstash/redis
 Create lib/rate-limit.ts with rate limiting.
 ## Requirements:
@@ -2420,7 +2425,7 @@ Export rateLimit function.
 - Create free Redis database
 - Add credentials to .env.local
 
-## ### Manual Steps
+### Manual Steps
 
 ## **1. Test Performance**
 - Ask same question twice
@@ -2434,10 +2439,10 @@ Export rateLimit function.
 
 ## STEP 21: Error Handling & Logging (Day 17 - 3 hours)
 
-## ### What You'll Do
+### What You'll Do
 Add comprehensive error tracking
 
-## ### Manual: Setup Sentry
+### Manual: Setup Sentry
 ## ```bash
 npm install @sentry/nextjs
 
@@ -2445,7 +2450,7 @@ npm install @sentry/nextjs
 npx @sentry/wizard@latest -i nextjs
 ## ```
 
-## ### Cursor Prompt
+### Cursor Prompt
 Configure Sentry for error tracking.
 ## Requirements:
 
@@ -2476,7 +2481,7 @@ Configure error filtering
 Make errors trackable and debuggable.
 
 
-## ### Manual Steps
+### Manual Steps
 
 **1. Get Sentry DSN**
 - Create project at sentry.io
@@ -2492,10 +2497,10 @@ Make errors trackable and debuggable.
 
 ## STEP 22: SEO & Meta Tags (Day 18 - 3 hours)
 
-## ### What You'll Do
+### What You'll Do
 Optimize for search engines
 
-## ### Cursor Prompt #1: Meta Tags
+### Cursor Prompt #1: Meta Tags
 Update app/layout.tsx with comprehensive SEO.
 ## Requirements:
 
@@ -2531,7 +2536,7 @@ Favicon setup
 
 Make it SEO-friendly.
 
-## ### Cursor Prompt #2: Blog Setup
+### Cursor Prompt #2: Blog Setup
 Create app/blog structure for SEO content.
 
 Create app/blog/page.tsx (blog list)
@@ -2550,7 +2555,7 @@ Share buttons
 
 Generate 5 sample blog posts.
 
-## ### Manual Steps
+### Manual Steps
 
 ## **1. Create Logo**
 - Design simple logo (or use Canva)
@@ -2567,10 +2572,10 @@ Generate 5 sample blog posts.
 
 ## STEP 23: Mobile App (PWA) (Day 18 - 3 hours)
 
-## ### What You'll Do
+### What You'll Do
 Make it installable as app
 
-## ### Cursor Prompt
+### Cursor Prompt
 Convert to Progressive Web App (PWA).
 ## Requirements:
 
@@ -2611,7 +2616,7 @@ Test on mobile
 Make it installable on phones.
 
 
-## ### Manual Steps
+### Manual Steps
 
 ## **1. Create Icons**
 - 192x192px icon
@@ -2630,10 +2635,10 @@ Make it installable on phones.
 
 ## STEP 24: Testing & Bug Fixes (Day 19-20 - 12 hours)
 
-## ### What You'll Do
+### What You'll Do
 Comprehensive testing and fixes
 
-## ### Manual Testing Checklist
+### Manual Testing Checklist
 
 **Authentication:**
 - [ ] Sign up works
@@ -2698,24 +2703,24 @@ Comprehensive testing and fixes
 - [ ] PWA installs
 - [ ] Offline mode works
 
-## ### Bug Tracking
+### Bug Tracking
 
 
 Create `BUGS.md`:
 ## ```markdown
 ## # Bug List
 
-## ## High Priority
-## - [ ] Bug 1: Description
-## - [ ] Bug 2: Description
+## High Priority
+- [ ] Bug 1: Description
+- [ ] Bug 2: Description
 
-## ## Medium Priority
-## - [ ] Bug 3: Description
+## Medium Priority
+- [ ] Bug 3: Description
 
-## ## Low Priority
-## - [ ] Bug 4: Description
+## Low Priority
+- [ ] Bug 4: Description
 
-## ## Fixed
+## Fixed
 - [x] Bug 5: Description - Fixed on Day X
 ## ```
 
@@ -2727,10 +2732,10 @@ Fix all High and Medium priority bugs.
 
 ## STEP 25: Deploy to Production (Day 21 - 4 hours)
 
-## ### What You'll Do
+### What You'll Do
 Deploy live to internet
 
-## ### Manual Steps
+### Manual Steps
 
 **1. Prepare for Deploy**
 ## ```bash
@@ -2763,7 +2768,7 @@ vercel --prod
 Follow prompts:
 - Link to GitHub repo
 - Add environment variables
-## - Deploy
+- Deploy
 
 **4. Custom Domain (Optional)**
 - Buy domain (.pk from PKNIC)
@@ -2788,15 +2793,15 @@ Follow prompts:
 
 ## STEP 26: Launch Marketing (Day 22 - 6 hours)
 
-## ### What You'll Do
+### What You'll Do
 
 Get first users
 
-## ### Manual Tasks
+### Manual Tasks
 
 ## **1. Product Hunt Launch**
 - Create account
-## - Prepare:
+- Prepare:
 - Screenshot galleries
 - Demo video (2 min)
 - Product description
@@ -2849,10 +2854,10 @@ Free tier available. Would you like a demo?
 
 ## **5. Press Release**
 Send to:
-## - Dawn Tech
+- Dawn Tech
 - ProPakistani
 - TechJuice
-## - Startup Pakistan
+- Startup Pakistan
 
 ## **6. Reddit**
 Post in:
@@ -2861,8 +2866,8 @@ Post in:
 - r/SideProject
 
 ## **7. Analytics Setup**
-## - Add Google Analytics
-## - Add Facebook Pixel
+- Add Google Analytics
+- Add Facebook Pixel
 - Track conversions
 
 **Target: 100 signups in 7 days**
@@ -2873,16 +2878,16 @@ Post in:
 
 ## STEP 27: User Feedback & Iteration (Day 23-25 - 18 hours)
 
-## ### What You'll Do
+### What You'll Do
 Collect feedback and improve
 
-## ### Manual Process
+### Manual Process
 
 ## **1. User Interviews**
 
 - Message first 10 users
 - Schedule 15-min calls
-## - Ask:
+- Ask:
 - What do you like?
 - What's confusing?
 - What's missing?
@@ -2919,7 +2924,7 @@ Based on feedback:
 
 ## STEP 28: FYP Documentation (Day 26-27 - 12 hours)
 
-## ### What You'll Do
+### What You'll Do
 Complete all FYP paperwork
 
 ### Cursor Prompt #1: Generate SRS
@@ -2971,7 +2976,7 @@ Non-Functional Requirements
 
 Format as professional academic document.
 
-## ### Cursor Prompt #2: Generate Architecture Doc
+### Cursor Prompt #2: Generate Architecture Doc
 Create System Architecture Document with:
 
 High-Level Architecture Diagram
@@ -2985,13 +2990,13 @@ API Documentation
 
 Include professional diagrams and explanations.
 
-## ### Manual Documents
+### Manual Documents
 
 ## **1. User Manual**
 - Screenshots of each feature
 - Step-by-step tutorials
 - Troubleshooting guide
-## - FAQ
+- FAQ
 
 ## **2. Testing Report**
 - Test cases (50+)
@@ -3000,14 +3005,14 @@ Include professional diagrams and explanations.
 - Performance benchmarks
 
 ## **3. Project Report**
-## - Abstract
-## - Introduction
-## - Literature Review
-## - Methodology
-## - Implementation
-## - Results
-## - Conclusion
-## - Future Work
+- Abstract
+- Introduction
+- Literature Review
+- Methodology
+- Implementation
+- Results
+- Conclusion
+- Future Work
 - References (IEEE format)
 
 ## **4. Presentation**
@@ -3027,10 +3032,10 @@ Include professional diagrams and explanations.
 
 ## STEP 29: Final Polish & Prep (Day 28-29 - 12 hours)
 
-## ### What You'll Do
+### What You'll Do
 Final touches before submission
 
-## ### Checklist
+### Checklist
 
 **Code Quality:**
 - [ ] All code commented
@@ -3076,10 +3081,10 @@ Final touches before submission
 
 ## STEP 30: Submission & Demo Day (Day 30)
 
-## ### What You'll Do
+### What You'll Do
 Submit FYP and present
 
-## ### Timeline
+### Timeline
 
 **Morning (9 AM - 12 PM): Final Checks**
 - Test live site one last time
@@ -3111,13 +3116,13 @@ Submit FYP and present
 - Case predictor
 - Payment flow
 - Technical Overview (3 min)
-## - Architecture
+- Architecture
 - Tech stack
 - Challenges solved
 - Results (2 min)
 - User stats
-## - Revenue
-## - Impact
+- Revenue
+- Impact
 - Q&A (5 min)
 
 **Common Questions to Prepare:**
@@ -3139,9 +3144,9 @@ Submit FYP and present
 
 ## ---
 
-## ##  POST-SUBMISSION: GROWTH PHASE
+##  POST-SUBMISSION: GROWTH PHASE
 
-## ### Month 2-3 Goals
+### Month 2-3 Goals
 
 **Product:**
 - Add 10 more features from user requests
@@ -3164,9 +3169,9 @@ Submit FYP and present
 
 ## ---
 
-## ##  SUCCESS METRICS
+##  SUCCESS METRICS
 
-## ### By Day 30:
+### By Day 30:
 - ✅ Production app live
 - ✅ 6 features working
 - ✅ 100+ users signed up
@@ -3175,9 +3180,9 @@ Submit FYP and present
 - ✅ FYP submitted
 - ✅ A+ grade worthy
 
-## ### Key Performance Indicators:
+### Key Performance Indicators:
 - Response time: <3 seconds
-## - Uptime: >99%
+- Uptime: >99%
 - User satisfaction: 4.5+ stars
 - Query accuracy: >85%
 - Daily active users: 20+
@@ -3185,36 +3190,36 @@ Submit FYP and present
 
 ## ---
 
-## ##  TOOLS SUMMARY
+##  TOOLS SUMMARY
 
-## ### Development:
-- Cursor AI (coding assistant)
-## - Next.js 14 (framework)
-## - Supabase (database)
+### Development:
+- Claude Code (coding assistant)
+- Next.js 16 (framework)
+- Supabase (database)
 - Groq (AI API)
 - Qdrant (vector DB)
 
-- Neo4j (graph DB)
+- ~~Neo4j~~ (removed — Supabase handles relations)
 
-## ### Design:
+### Design:
 - Shadcn/UI (components)
 - Tailwind CSS (styling)
-## - Lucide (icons)
-## - Framer Motion (animations)
+- Lucide (icons)
+- Framer Motion (animations)
 
-## ### Deployment:
-## - Vercel (hosting)
+### Deployment:
+- Vercel (hosting)
 - GitHub (version control)
 - Sentry (error tracking)
-## - Google Analytics
+- Google Analytics
 
-## ### Payments:
+### Payments:
 - JazzCash (Pakistani market)
 - Stripe (international - optional)
 
 ## ---
 
-## ## ⚠ COMMON PITFALLS TO AVOID
+## ⚠ COMMON PITFALLS TO AVOID
 
 - **Perfectionism**
 - Don't spend 3 days on one feature
@@ -3250,9 +3255,9 @@ Submit FYP and present
 
 ## ---
 
-## ##  PRO TIPS FOR SUCCESS
+##  PRO TIPS FOR SUCCESS
 
-### With Cursor AI:
+### With Claude Code:
 - **Be Specific**
 - Bad: "Create a login page"
 - Good: "Create app/auth/page.tsx with email/password login using Supabase, include
@@ -3260,7 +3265,7 @@ validation, error handling, loading states, use Shadcn UI components"
 
 - **Iterate**
 - Generate code
-## - Review
+- Review
 - Ask for improvements
 - Repeat until perfect
 
@@ -3270,16 +3275,16 @@ validation, error handling, loading states, use Shadcn UI components"
 - Ask Cursor to explain
 - You'll become better developer
 
-## ### Time Management:
+### Time Management:
 - **Morning**: Study for mids (2-3 hours)
 - **Afternoon**: Code (4-5 hours)
 - **Evening**: Study (1 hour)
 - **Night**: Code (2-3 hours)
 
-## ### When Stuck:
+### When Stuck:
 - Read error message carefully
 - Google the error
-- Ask Cursor AI
+- Ask Claude Code
 - Check documentation
 - Ask me (come back to this chat)
 - Ask classmates/supervisor
@@ -3288,9 +3293,9 @@ validation, error handling, loading states, use Shadcn UI components"
 
 ## ---
 
-## ##  SUPPORT
+##  SUPPORT
 
-## ### If Something Doesn't Work:
+### If Something Doesn't Work:
 
 **Step 1: Debug**
 - Check browser console (F12)
@@ -3308,15 +3313,15 @@ validation, error handling, loading states, use Shadcn UI components"
 - Show me the error
 - I'll help debug
 
-## ### Resources:
+### Resources:
 - Next.js Docs: https://nextjs.org/docs
 - Supabase Docs: https://supabase.com/docs
 - Groq Docs: https://console.groq.com/docs
-- Cursor AI: https://cursor.sh/docs
+- Claude Code: https://cursor.sh/docs
 
 ## ---
 
-## ##  FINAL WORDS
+##  FINAL WORDS
 
 **This plan is aggressive but doable.**
 
@@ -3337,7 +3342,7 @@ You're doing 2x work = 2x results
 - Start Monday (no delay)
 - Follow steps in order
 - Don't skip manual tasks
-- Use Cursor AI heavily
+- Use Claude Code heavily
 - Ship fast, iterate
 - Talk to users
 - Balance with mids

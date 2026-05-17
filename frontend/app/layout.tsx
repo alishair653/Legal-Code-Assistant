@@ -1,36 +1,19 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import { Toaster } from "@/components/ui/sonner";
-import "./globals.css";
+'use client';
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from '@/components/ui/sonner';
+import './globals.css';
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const queryClient = new QueryClient();
 
-export const metadata: Metadata = {
-  title: "Legal Code Assistant",
-  description: "AI-powered assistant for Pakistani law (PPC, CrPC, QSO).",
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
+    <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
-        {children}
-        <Toaster richColors position="top-center" />
+        <QueryClientProvider client={queryClient}>
+          {children}
+          <Toaster richColors position="top-center" />
+        </QueryClientProvider>
       </body>
     </html>
   );
