@@ -62,9 +62,11 @@ class RuntimeOptions:
     implicit_wait_sec: float = 0.0
     selenium_command_timeout_sec: int = 180
     gc_every_downloads: int = 5
-    restart_browser_every: int = 25
+    restart_browser_every: int = 80
     max_consecutive_errors: int = 3
-    memory_limit_percent: float = 88.0
+    restart_on_ram: bool = False
+    memory_limit_percent: float = 95.0
+    memory_restart_cooldown_sec: float = 600.0
     download_poll_sec: float = 0.25
     log_level: str = "INFO"
 
@@ -176,6 +178,7 @@ def build_chrome_driver(out_dir: Path, opts: RuntimeOptions) -> webdriver.Chrome
     chrome_opts.add_argument("--window-size=1280,800")
     chrome_opts.add_argument("--no-sandbox")
     chrome_opts.add_argument("--disable-dev-shm-usage")
+    chrome_opts.add_argument("--renderer-process-limit=2")
     chrome_opts.add_argument("--disable-extensions")
     chrome_opts.add_argument("--disable-background-networking")
     chrome_opts.add_argument("--disable-sync")
@@ -227,6 +230,7 @@ class BrowserSession:
         self.set_download_path_cb = set_download_path_cb
         self.stats = RuntimeStats()
         self.driver: Optional[webdriver.Chrome] = None
+        self._last_memory_restart_ts: float = 0.0
         self._start()
 
     def _start(self) -> webdriver.Chrome:
@@ -269,7 +273,7 @@ class BrowserSession:
             self.stats.consecutive_errors = 0
             return self._start()
         if self.stats.downloads_since_restart >= r.restart_browser_every:
-            self.log.info("Browser restart: every %s downloads", r.restart_browser_every)
+            self.log.info("Browser restart: every %s pairs (scheduled)", r.restart_browser_every)
             self.stats.downloads_since_restart = 0
             return self._start()
         if self.stats.consecutive_errors >= r.max_consecutive_errors:
@@ -277,12 +281,17 @@ class BrowserSession:
             self.stats.consecutive_errors = 0
             self.stats.downloads_since_restart = 0
             return self._start()
-        if memory_pressure_high(r.memory_limit_percent):
-            self.log.warning(
-                "Browser restart: RAM above %.0f%%", r.memory_limit_percent
-            )
-            self.stats.downloads_since_restart = 0
-            return self._start()
+        if r.restart_on_ram and memory_pressure_high(r.memory_limit_percent):
+            now = time.time()
+            if now - self._last_memory_restart_ts >= r.memory_restart_cooldown_sec:
+                self.log.warning(
+                    "Browser restart: RAM above %.0f%% (cooldown %.0fs)",
+                    r.memory_limit_percent,
+                    r.memory_restart_cooldown_sec,
+                )
+                self._last_memory_restart_ts = now
+                self.stats.downloads_since_restart = 0
+                return self._start()
         return self.get_driver()
 
     def on_download_success(self) -> None:

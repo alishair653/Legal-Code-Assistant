@@ -285,18 +285,32 @@ class BookStatsTracker:
         lines.append("=" * 62)
         return lines
 
-    def render(self, year_note: str, force: bool = False, min_interval: float = 0.4) -> None:
+    def tqdm_refresh(self, year_note: str) -> None:
+        """Update tqdm bar only (no multi-line block — avoids RAM/scroll churn)."""
+        if not self.use_live_bar or not TQDM_OK or self._tqdm_bar is None:
+            return
+        desc = f"{self.book_label} {self.pairs_done}/{self.pairs_total}"
+        if self.current_category:
+            desc += f" | {self.current_category[:28]}"
+        self._tqdm_bar.set_description_str(desc[:72], refresh=False)
+        post_parts = [f"saved={self.saved_this_run}", f"fail={self.failed}"]
+        if self.current_pair:
+            post_parts.append(self.current_pair[:40])
+        eta = self.eta_seconds
+        if eta is not None:
+            post_parts.append(f"ETA~{_fmt_duration(eta)}")
+        self._tqdm_bar.set_postfix_str(" | ".join(post_parts), refresh=True)
+
+    def render(self, year_note: str, force: bool = False, min_interval: float = 0.8) -> None:
         now = time.time()
         if not force and (now - self._last_render) < min_interval:
             return
         self._last_render = now
-        block = "\n".join(self.lines(year_note))
         if self.use_live_bar and TQDM_OK and self._tqdm_bar is not None:
-            self._tqdm_bar.set_description_str(
-                f"{self.book_label} {self.pairs_done}/{self.pairs_total}", refresh=True
-            )
-            tqdm.write(block)
-        elif sys.stdout.isatty():
+            self.tqdm_refresh(year_note)
+            return
+        block = "\n".join(self.lines(year_note))
+        if sys.stdout.isatty():
             # Move up and overwrite previous block (approx 10 lines)
             sys.stdout.write("\033[10A\033[J")
             sys.stdout.write(block + "\n")

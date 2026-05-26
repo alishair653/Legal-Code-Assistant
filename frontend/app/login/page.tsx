@@ -2,13 +2,15 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Scale, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Scale, Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useChatStore } from '@/store/chatStore';
+import { signIn } from '@/lib/supabase';
+import { toast } from 'sonner';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,12 +18,21 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email && password) {
-      login(email, password);
-      router.push('/chat');
+    setLoading(true);
+    try {
+      const { user } = await signIn(email, password);
+      if (user) {
+        login(user.email!, password); // sync into Zustand for UI state
+        router.push('/chat');
+      }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Login failed. Check email and password.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -53,6 +64,10 @@ export default function LoginPage() {
             <span className="text-xl font-bold" style={{ fontFamily: "'Playfair Display', serif" }}>Legal Code AI</span>
           </div>
 
+          <button onClick={() => router.back()} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6 font-sans">
+            <ArrowLeft className="w-4 h-4" /> Back
+          </button>
+
           <h2 className="text-2xl font-bold mb-1">Welcome back</h2>
           <p className="text-muted-foreground text-sm mb-6 font-sans">Sign in to your account</p>
 
@@ -74,8 +89,8 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
-            <Button type="submit" className="w-full h-11 rounded-xl gradient-gold text-primary font-semibold hover:opacity-90">
-              Sign In
+            <Button type="submit" disabled={loading} className="w-full h-11 rounded-xl gradient-gold text-primary font-semibold hover:opacity-90">
+              {loading ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
 

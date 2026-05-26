@@ -2,13 +2,15 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Scale, Mail, Lock, Eye, EyeOff, User } from 'lucide-react';
+import { Scale, Mail, Lock, Eye, EyeOff, User, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useChatStore } from '@/store/chatStore';
+import { signUp } from '@/lib/supabase';
+import { toast } from 'sonner';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -17,12 +19,26 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (name && email && password) {
-      signup(name, email, password);
-      router.push('/chat');
+    if (password.length < 6) {
+      toast.error('Password must be at least 6 characters.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { user } = await signUp(name, email, password);
+      if (user) {
+        signup(name, email, password); // sync into Zustand for UI state
+        toast.success('Account created! Welcome to Legal Code AI.');
+        router.push('/chat');
+      }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Signup failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -52,6 +68,10 @@ export default function SignupPage() {
             <span className="text-xl font-bold" style={{ fontFamily: "'Playfair Display', serif" }}>Legal Code AI</span>
           </div>
 
+          <button onClick={() => router.back()} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6 font-sans">
+            <ArrowLeft className="w-4 h-4" /> Back
+          </button>
+
           <h2 className="text-2xl font-bold mb-1">Create account</h2>
           <p className="text-muted-foreground text-sm mb-6 font-sans">Get started with Legal Code Assistant</p>
 
@@ -80,8 +100,8 @@ export default function SignupPage() {
                 </button>
               </div>
             </div>
-            <Button type="submit" className="w-full h-11 rounded-xl gradient-gold text-primary font-semibold hover:opacity-90">
-              Create Account
+            <Button type="submit" disabled={loading} className="w-full h-11 rounded-xl gradient-gold text-primary font-semibold hover:opacity-90">
+              {loading ? 'Creating account...' : 'Create Account'}
             </Button>
           </form>
 

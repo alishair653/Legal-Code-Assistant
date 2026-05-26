@@ -54,7 +54,11 @@ from urllib.parse import urljoin, urlparse
 
 import requests
 from selenium import webdriver
-from selenium.common.exceptions import StaleElementReferenceException
+from selenium.common.exceptions import (
+    StaleElementReferenceException,
+    TimeoutException,
+    WebDriverException,
+)
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
@@ -76,6 +80,20 @@ from scraper_runtime import (
 )
 
 SCRIPT_STARTED_AT = time.time()
+
+
+class ShardIncompleteError(Exception):
+    """Raised when the worker exits the category loop but its shard still has pending PDFs."""
+
+    def __init__(self, remaining: int, worker_id: int, pairs_done: int, pairs_total: int) -> None:
+        self.remaining = remaining
+        self.worker_id = worker_id
+        self.pairs_done = pairs_done
+        self.pairs_total = pairs_total
+        super().__init__(
+            f"worker {worker_id}: {remaining} of {pairs_total} shard PDFs still pending "
+            f"({pairs_done} done)"
+        )
 
 
 def _load_config(ai_ml_root: Path) -> Dict[str, Any]:
@@ -147,6 +165,25 @@ def _card_label(raw_label: str, index: int) -> str:
     return label
 
 
+def _normalize_tile_href(href: str, index_url: str) -> str:
+    """Same URL string for plan cache + CRC shard (must match across all workers)."""
+    h = (href or "").strip()
+    if not h:
+        return h
+    return urljoin(index_url, h).rstrip("/")
+
+
+def _print_worker_banner(worker_id: int, workers: int, state_path: Path) -> None:
+    line = "=" * 62
+    print(line)
+    print(f"  PARALLEL WORKER  {worker_id}  of  {workers - 1}   (--worker-id {worker_id}  --workers {workers})")
+    print(f"  Checkpoint: {state_path.name}")
+    if workers > 1:
+        others = [str(i) for i in range(workers) if i != worker_id]
+        print(f"  Other tabs must run worker-id: {', '.join(others)} with the SAME --workers {workers}")
+    print(line)
+
+
 def _state_path_for_worker(out_dir: Path, worker_id: int, workers: int) -> Path:
     """Single shared checkpoint when workers==1; per-worker file when parallel to avoid races."""
     if workers <= 1:
@@ -160,6 +197,39 @@ def _worker_owns_pair(tile_href: str, ctext: str, ytext: str, worker_id: int, wo
     token = f"{tile_href}\0{ctext}\0{ytext}"
     h = zlib.crc32(token.encode("utf-8")) & 0xFFFFFFFF
     return h % workers == worker_id
+
+
+def _print_worker_shard_summary(
+    out_dir: Path,
+    tile_href: str,
+    card_label: str,
+    workers: int,
+    worker_id: int,
+    min_year: Optional[int],
+    max_year: Optional[int],
+) -> None:
+    """Show how many category×year pairs each worker owns (from plan cache, no browser)."""
+    pairs = load_book_plan_cache(out_dir, _slug(card_label), tile_href, min_year, max_year)
+    if not pairs:
+        print(
+            "Shard plan: no .book_plan_cache yet — first run may scan the site once; "
+            "then this summary appears on restart."
+        )
+        return
+    counts = [0] * workers
+    for ctext, ytext in pairs:
+        for wid in range(workers):
+            if _worker_owns_pair(tile_href, ctext, ytext, wid, workers):
+                counts[wid] += 1
+                break
+    total = sum(counts)
+    mine = counts[worker_id]
+    parts = " | ".join(f"worker {i}: {counts[i]}" for i in range(workers))
+    print(f"Shard plan ({total} pairs total, no overlap): {parts}")
+    print(
+        f"This tab (worker {worker_id}): {mine} pairs (~{_pct(mine, total)}). "
+        "Other tabs must use the same --workers with different --worker-id."
+    )
 
 
 def _progress_key(card_label: str, ctext: str, ytext: str) -> str:
@@ -428,6 +498,41 @@ def _sync_driver_wait(
     return driver, wait
 
 
+def _safe_page_get(
+    driver: webdriver.Chrome,
+    url: str,
+    wait: WebDriverWait,
+    out_dir: Optional[Path],
+    log: Optional[logging.Logger],
+    *,
+    retries: int = 3,
+) -> None:
+    """Load law page with retries; stops hung renderer loads (common with 3 Chromes open)."""
+    last_err: Optional[BaseException] = None
+    for attempt in range(1, retries + 1):
+        try:
+            driver.get(url)
+            if out_dir is not None:
+                _set_chrome_download_path_cdp(driver, out_dir)
+            time.sleep(0.5)
+            try:
+                wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "select")))
+            except Exception:
+                pass
+            return
+        except (TimeoutException, WebDriverException) as e:
+            last_err = e
+            if log:
+                log.warning("Page load attempt %s/%s failed: %s", attempt, retries, e)
+            try:
+                driver.execute_script("window.stop();")
+            except Exception:
+                pass
+            time.sleep(2.0 * attempt)
+    if last_err is not None:
+        raise last_err
+
+
 def _reload_law_search_form(
     driver: webdriver.Chrome,
     wait: WebDriverWait,
@@ -435,16 +540,53 @@ def _reload_law_search_form(
     out_dir: Optional[Path] = None,
     *,
     fast: bool = False,
+    log: Optional[logging.Logger] = None,
 ) -> None:
     """After PDF / viewer navigation, reopen the law search page so <select>s are fresh."""
-    driver.get(law_page_url)
-    if out_dir is not None:
-        _set_chrome_download_path_cdp(driver, out_dir)
-    time.sleep(0.35 if fast else 1.0)
-    try:
-        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "select")))
-    except Exception:
-        pass
+    if fast:
+        try:
+            driver.get(law_page_url)
+            if out_dir is not None:
+                _set_chrome_download_path_cdp(driver, out_dir)
+            time.sleep(0.35)
+        except (TimeoutException, WebDriverException):
+            _safe_page_get(driver, law_page_url, wait, out_dir, log, retries=2)
+        return
+    _safe_page_get(driver, law_page_url, wait, out_dir, log)
+
+
+def _recover_driver(
+    browser: Optional[BrowserSession],
+    driver: webdriver.Chrome,
+    wait: WebDriverWait,
+    law_page_url: str,
+    out_dir: Path,
+    log: Optional[logging.Logger],
+    reason: str,
+) -> Tuple[webdriver.Chrome, WebDriverWait]:
+    if browser is not None:
+        browser.on_error()
+        driver = browser.maybe_restart(reason, force=True)
+        driver, wait = _sync_driver_wait(browser, driver, wait)
+    _reload_law_search_form(driver, wait, law_page_url, out_dir, log=log)
+    return driver, wait
+
+
+def _category_shard_complete(
+    out_dir: Path,
+    card_label: str,
+    ctext: str,
+    all_completed_cache: set[str],
+    min_pdf_bytes: int,
+    owned_pair_keys: Set[Tuple[str, str]],
+) -> bool:
+    """True if this worker has no pending years left in the category (skip slow reload)."""
+    years = [y for c, y in owned_pair_keys if c == ctext]
+    if not years:
+        return True
+    return all(
+        _pair_done(out_dir, card_label, ctext, y, all_completed_cache, min_pdf_bytes) for y in years
+    )
 
 
 def _iterate_category_year(
@@ -529,6 +671,23 @@ def _iterate_category_year(
         tracker.render(yr_note, force=True)
         tracker.start_tqdm()
         owned_pair_keys = tracker.owned_pairs
+        remaining_shard = tracker.remaining
+        console.info(
+            f"[worker {worker_id}] shard: {tracker.pairs_total} pairs assigned | "
+            f"{tracker.pairs_done} already done | {remaining_shard} left to process"
+        )
+        if tracker.pairs_total == 0:
+            console.warn(
+                f"Worker {worker_id} owns 0 pairs — check --workers {workers} and --worker-id {worker_id} "
+                "(sab tabs par --workers same hona chahiye)."
+            )
+        elif remaining_shard == 0:
+            console.success(
+                f"Worker {worker_id}: is shard ki saari PDFs pehle se maujood hain — is tab ko band kar "
+                f"sakte ho; downloads worker {', '.join(str(i) for i in range(workers) if i != worker_id)} par hongi."
+            )
+            tracker.print_final_summary(yr_note)
+            return saved
     elif scan_progress:
         tile_pairs = _collect_category_year_pairs_for_status(
             driver, wait, cfg, out_dir, min_year, max_year, quiet=False
@@ -552,10 +711,43 @@ def _iterate_category_year(
         tracker.categories_total = max(len(cat_list), 1)
 
     for cat_idx, ctext in enumerate(cat_list, start=1):
-        _reload_law_search_form(driver, wait, law_page_url, out_dir)
+        if owned_pair_keys and _category_shard_complete(
+            out_dir, card_label, ctext, all_completed_cache, min_pdf_bytes, owned_pair_keys
+        ):
+            if tracker is not None:
+                tracker.current_category = ctext
+                tracker.category_index = cat_idx
+                shard_years = [y for c, y in owned_pair_keys if c == ctext]
+                tracker.category_total = len(shard_years)
+                tracker.category_done = len(shard_years)
+                console.info(
+                    f"[skip category] '{ctext}' — shard complete ({len(shard_years)} year(s), fast)"
+                )
+                tracker.render(yr_note)
+            continue
+
+        try:
+            _reload_law_search_form(driver, wait, law_page_url, out_dir, log=log)
+        except Exception as e:
+            console.warn(f"Category reload failed '{ctext}': {e}")
+            try:
+                driver, wait = _recover_driver(
+                    browser, driver, wait, law_page_url, out_dir, log, f"category: {e}"
+                )
+            except Exception as e2:
+                console.warn(f"Recovery failed after category error: {e2}")
+            continue
+
         pair = _get_two_selects(driver, wait, cfg)
         if not pair:
-            break
+            console.warn(f"No <select> on page for category '{ctext}' — reload & skip category")
+            try:
+                driver, wait = _recover_driver(
+                    browser, driver, wait, law_page_url, out_dir, log, "missing selects"
+                )
+            except Exception:
+                pass
+            continue
         category_select, year_select = pair
         try:
             category_select.select_by_visible_text(ctext)
@@ -565,7 +757,14 @@ def _iterate_category_year(
 
         pair = _get_two_selects(driver, wait, cfg)
         if not pair:
-            break
+            console.warn(f"Year dropdown missing for '{ctext}' — reload & skip category")
+            try:
+                driver, wait = _recover_driver(
+                    browser, driver, wait, law_page_url, out_dir, log, "missing year select"
+                )
+            except Exception:
+                pass
+            continue
         _, year_select = pair
         year_texts = _filtered_year_texts(year_select, min_year, max_year)
         category_owned_years = [
@@ -584,6 +783,7 @@ def _iterate_category_year(
             tracker.category_index = cat_idx
             tracker.category_total = category_total
             tracker.category_done = len(category_done_keys)
+            tracker.current_pair = ctext
             if category_total > 0 and len(category_done_keys) >= category_total:
                 console.info(f"[skip category] '{ctext}' — all {category_total} year(s) already downloaded")
                 tracker.render(yr_note, force=True)
@@ -620,7 +820,10 @@ def _iterate_category_year(
                     tracker.category_done = len(category_done_keys)
                     tracker.current_pair = f"{ctext} / {ytext}"
                     if tracker.skipped_this_run <= 3 or tracker.skipped_this_run % 25 == 0:
-                        console.info(f"[skip] {fname.name}")
+                        console.info(
+                            f"[worker {worker_id} skip] {fname.name} "
+                            f"({tracker.pairs_done}/{tracker.pairs_total})"
+                        )
                     tracker.render(yr_note)
                     tracker.tqdm_update(1)
                 else:
@@ -632,121 +835,155 @@ def _iterate_category_year(
                     browser.on_pair_processed()
                 continue
 
-            _reload_law_search_form(driver, wait, law_page_url, out_dir)
-            pair = _get_two_selects(driver, wait, cfg)
-            if not pair:
-                break
-            category_select, year_select = pair
             try:
-                category_select.select_by_visible_text(ctext)
-            except (StaleElementReferenceException, Exception):
-                continue
-            time.sleep(0.35)
-            try:
-                year_select.select_by_visible_text(ytext)
-            except (StaleElementReferenceException, Exception):
-                continue
-            time.sleep(0.4)
-
-            try:
-                btn = driver.find_element(By.XPATH, search_xpath)
-                btn.click()
-            except (StaleElementReferenceException, Exception):
-                console.warn(f"Search click failed for {ctext} / {ytext}")
-                if tracker is not None:
-                    tracker.record_fail()
-                    tracker.current_pair = f"{ctext} / {ytext}"
-                    tracker.render(yr_note, force=True)
-                continue
-
-            time.sleep(post_wait)
-
-            # Timestamp before triggering browser download (used to pick the right PDF file).
-            since_ts = time.time()
-            clicked = False
-            if pdf_xpath:
+                _reload_law_search_form(driver, wait, law_page_url, out_dir, log=log)
+                pair = _get_two_selects(driver, wait, cfg)
+                if not pair:
+                    break
+                category_select, year_select = pair
                 try:
-                    link = WebDriverWait(driver, 8).until(
-                        EC.element_to_be_clickable((By.XPATH, pdf_xpath))
-                    )
-                    link.click()
-                    clicked = True
-                except Exception:
-                    pass
-            if not clicked:
-                for partial in ("Print/Download", "Download", "PDF", "Print"):
+                    category_select.select_by_visible_text(ctext)
+                except (StaleElementReferenceException, Exception):
+                    continue
+                time.sleep(0.35)
+                try:
+                    year_select.select_by_visible_text(ytext)
+                except (StaleElementReferenceException, Exception):
+                    continue
+                time.sleep(0.4)
+
+                try:
+                    btn = driver.find_element(By.XPATH, search_xpath)
+                    btn.click()
+                except (StaleElementReferenceException, Exception):
+                    console.warn(f"Search click failed for {ctext} / {ytext}")
+                    if tracker is not None:
+                        tracker.record_fail()
+                        tracker.current_pair = f"{ctext} / {ytext}"
+                        tracker.render(yr_note, force=True)
+                    continue
+
+                time.sleep(post_wait)
+
+                since_ts = time.time()
+                clicked = False
+                if pdf_xpath:
                     try:
-                        el = driver.find_element(
-                            By.XPATH,
-                            f"//*[self::a or self::button or self::span][contains(., '{partial}')]",
+                        link = WebDriverWait(driver, 8).until(
+                            EC.element_to_be_clickable((By.XPATH, pdf_xpath))
                         )
-                        el.click()
+                        link.click()
                         clicked = True
-                        break
                     except Exception:
-                        continue
+                        pass
+                if not clicked:
+                    for partial in ("Print/Download", "Download", "PDF", "Print"):
+                        try:
+                            el = driver.find_element(
+                                By.XPATH,
+                                f"//*[self::a or self::button or self::span][contains(., '{partial}')]",
+                            )
+                            el.click()
+                            clicked = True
+                            break
+                        except Exception:
+                            continue
 
-            if not clicked:
-                console.warn(f"No PDF trigger for {ctext} / {ytext}")
-                if tracker is not None:
-                    tracker.record_fail()
-                    tracker.current_pair = f"{ctext} / {ytext}"
-                    tracker.render(yr_note, force=True)
-                _reload_law_search_form(driver, wait, law_page_url, out_dir)
-                continue
+                if not clicked:
+                    console.warn(f"No PDF trigger for {ctext} / {ytext}")
+                    if tracker is not None:
+                        tracker.record_fail()
+                        tracker.current_pair = f"{ctext} / {ytext}"
+                        tracker.render(yr_note, force=True)
+                    _reload_law_search_form(driver, wait, law_page_url, out_dir, log=log)
+                    continue
 
-            wait_dl = float(cfg.get("download_wait_timeout_sec") or 180.0)
-            _wait_download_idle(out_dir, timeout_sec=wait_dl, poll_sec=download_poll_sec)
-            time.sleep(1.2)
-            fname = _expected_pdf_path(out_dir, card_label, ctext, ytext)
-            ok = _rename_downloaded_pdf_since(out_dir, fname, since_ts, min_pdf_bytes)
-            if not ok:
-                if _try_save_pdf_via_http(driver, fname, min_pdf_bytes):
-                    ok = True
-                    print(f"  [i] Saved via HTTP (viewer URL): {fname.name}")
-            pair_elapsed = time.time() - since_ts
-            if ok:
-                pkey = _progress_key(card_label, ctext, ytext)
-                completed.add(pkey)
-                _save_progress_atomic(state_path, completed)
-                saved += 1
-                category_done_keys.add(pkey)
-                if tracker is not None:
-                    tracker.record_save(pkey, pair_elapsed)
-                    tracker.category_done = len(category_done_keys)
-                    tracker.current_pair = f"{ctext} / {ytext}"
-                    console.success(f"[+] Saved: {fname.name}")
-                    tracker.render(yr_note)
-                    tracker.tqdm_update(1)
-                    tracker.persist_stats(out_dir)
+                wait_dl = float(cfg.get("download_wait_timeout_sec") or 180.0)
+                _wait_download_idle(out_dir, timeout_sec=wait_dl, poll_sec=download_poll_sec)
+                time.sleep(1.2)
+                fname = _expected_pdf_path(out_dir, card_label, ctext, ytext)
+                ok = _rename_downloaded_pdf_since(out_dir, fname, since_ts, min_pdf_bytes)
+                if not ok:
+                    if _try_save_pdf_via_http(driver, fname, min_pdf_bytes):
+                        ok = True
+                        print(f"  [i] Saved via HTTP (viewer URL): {fname.name}")
+                pair_elapsed = time.time() - since_ts
+                if ok:
+                    pkey = _progress_key(card_label, ctext, ytext)
+                    completed.add(pkey)
+                    _save_progress_atomic(state_path, completed)
+                    saved += 1
+                    category_done_keys.add(pkey)
+                    if tracker is not None:
+                        tracker.record_save(pkey, pair_elapsed)
+                        tracker.category_done = len(category_done_keys)
+                        tracker.current_pair = f"{ctext} / {ytext}"
+                        console.success(f"[worker {worker_id} +] Saved: {fname.name}")
+                        tracker.render(yr_note)
+                        tracker.tqdm_update(1)
+                        tracker.persist_stats(out_dir)
+                    else:
+                        print(f"  [+] Saved: {fname.name}")
+                        _print_live_progress(
+                            f"{card_label} / {ctext}", len(category_done_keys), category_total, ytext
+                        )
+                    if browser:
+                        browser.on_pair_processed()
                 else:
-                    print(f"  [+] Saved: {fname.name}")
-                    _print_live_progress(
-                        f"{card_label} / {ctext}", len(category_done_keys), category_total, ytext
+                    console.warn(
+                        f"Download incomplete for {ctext} / {ytext} "
+                        f"(no new PDF ≥{min_pdf_bytes}b after {wait_dl:.0f}s)"
                     )
+                    if tracker is not None:
+                        tracker.record_fail()
+                        tracker.current_pair = f"{ctext} / {ytext}"
+                        tracker.render(yr_note, force=True)
+                        tracker.persist_stats(out_dir)
+                    if browser:
+                        browser.on_error()
+
+                time.sleep(between_sec)
+                _reload_law_search_form(driver, wait, law_page_url, out_dir, log=log)
                 if browser:
-                    browser.on_pair_processed()
-            else:
+                    driver = browser.maybe_restart("after pair")
+                    driver, wait = _sync_driver_wait(browser, driver, wait)
+            except Exception as e:
+                if log:
+                    log.exception("Pair %s / %s error: %s", ctext, ytext, e)
                 console.warn(
-                    f"Download incomplete for {ctext} / {ytext} "
-                    f"(no new PDF ≥{min_pdf_bytes}b after {wait_dl:.0f}s)"
+                    f"[worker {worker_id}] timeout/error on {ctext} / {ytext} — "
+                    f"Chrome restart, phir agla PDF (ye pair baad mein dubara try ho sakta hai)"
                 )
                 if tracker is not None:
                     tracker.record_fail()
-                    tracker.current_pair = f"{ctext} / {ytext}"
-                    tracker.render(yr_note, force=True)
                     tracker.persist_stats(out_dir)
-                if browser:
-                    browser.on_error()
-
-            time.sleep(between_sec)
-            _reload_law_search_form(driver, wait, law_page_url, out_dir)
-            if browser:
-                driver = browser.maybe_restart("after pair")
-                driver, wait = _sync_driver_wait(browser, driver, wait)
+                try:
+                    driver, wait = _recover_driver(
+                        browser, driver, wait, law_page_url, out_dir, log, str(e)[:160]
+                    )
+                except Exception as e2:
+                    console.warn(f"Recovery failed: {e2}")
+                    if log:
+                        log.exception("Recovery failed")
+                continue
 
     if tracker is not None:
         tracker.persist_stats(out_dir)
+        if tracker.remaining > 0:
+            pending_labels: List[str] = []
+            for c, y in sorted(tracker.owned_pairs):
+                if _progress_key(card_label, c, y) not in tracker.done_keys:
+                    pending_labels.append(f"{c} / {y}")
+                if len(pending_labels) >= 5:
+                    break
+            if pending_labels:
+                msg = f"Pending PDF(s) ({tracker.remaining}): " + "; ".join(pending_labels)
+                if log:
+                    log.warning("Worker %s — %s", worker_id, msg)
+                console.warn(msg)
+            raise ShardIncompleteError(
+                tracker.remaining, worker_id, tracker.pairs_done, tracker.pairs_total
+            )
         tracker.print_final_summary(yr_note)
 
     return saved
@@ -1148,8 +1385,20 @@ def main() -> int:
     parser.add_argument(
         "--restart-browser-every",
         type=int,
-        default=25,
-        help="Restart Chrome after this many processed pairs (reduces hangs)",
+        default=80,
+        help="Restart Chrome after this many processed pairs (default 80; lower if hangs)",
+    )
+    parser.add_argument(
+        "--restart-on-ram",
+        action="store_true",
+        help="Also restart Chrome when system RAM is high (off by default; was causing restarts every PDF)",
+    )
+    parser.add_argument(
+        "--memory-limit",
+        type=float,
+        default=95.0,
+        metavar="PCT",
+        help="With --restart-on-ram: restart when RAM use exceeds PCT (default 95)",
     )
     parser.add_argument(
         "--gc-every",
@@ -1160,14 +1409,25 @@ def main() -> int:
     parser.add_argument(
         "--page-timeout",
         type=int,
-        default=90,
-        help="Selenium page load timeout seconds",
+        default=120,
+        help="Selenium page load timeout seconds (raise to 150-180 if renderer timeouts)",
     )
     parser.add_argument(
         "--selenium-timeout",
         type=int,
-        default=180,
-        help="WebDriver HTTP command timeout seconds (fixes Read timed out 120)",
+        default=240,
+        help="WebDriver HTTP command timeout seconds (fixes Read timed out 180)",
+    )
+    parser.add_argument(
+        "--tile-retries",
+        type=int,
+        default=50,
+        help="Re-run book loop after crash/timeout/incomplete shard (checkpoint skips finished PDFs)",
+    )
+    parser.add_argument(
+        "--until-complete",
+        action="store_true",
+        help="Keep resuming this worker's shard until 0 remaining (for CMD workers)",
     )
     parser.add_argument(
         "--log-level",
@@ -1186,7 +1446,9 @@ def main() -> int:
         print("--workers must be >= 1")
         return 2
     if args.worker_id < 0 or args.worker_id >= args.workers:
-        print("--worker-id must satisfy 0 <= worker-id < workers")
+        print("ERROR: --worker-id must satisfy 0 <= worker-id < workers")
+        print(f"  You used --worker-id {args.worker_id} with --workers {args.workers}")
+        print("  Fix: har CMD mein SAME --workers 3 aur alag --worker-id 0, 1, 2")
         return 2
     if args.workers == 1:
         if args.worker_id != 0:
@@ -1216,6 +1478,8 @@ def main() -> int:
         selenium_command_timeout_sec=args.selenium_timeout,
         gc_every_downloads=max(1, args.gc_every),
         restart_browser_every=max(5, args.restart_browser_every),
+        restart_on_ram=args.restart_on_ram,
+        memory_limit_percent=max(50.0, min(99.0, args.memory_limit)),
         download_poll_sec=0.45 if args.power_save else 0.25,
         log_level=args.log_level,
     )
@@ -1225,6 +1489,7 @@ def main() -> int:
         log.warning("More than 6 workers can hang laptops — prefer 4-6 workers.")
 
     state_path = _state_path_for_worker(out_dir, args.worker_id, args.workers)
+    _print_worker_banner(args.worker_id, args.workers, state_path)
     print(f"Output folder: {out_dir}")
     print(f"Checkpoint:    {state_path}")
     if args.reset_progress and state_path.is_file():
@@ -1232,16 +1497,18 @@ def main() -> int:
         print(f"Cleared progress file: {state_path}")
 
     completed = _load_progress(state_path)
+    global_skip = _load_all_progress(out_dir)
     if args.workers == 1:
         print("Mode: SINGLE WORKER (default) — one Chrome, lower battery/RAM use.")
-        print("Tip: for parallel scrape use --workers 5 --worker-id 0..4 in separate CMD windows.")
+        print("Tip: for 3 parallel tabs run scripts\\run_crcp_3workers.bat (or --workers 3 --worker-id 0..2).")
     else:
         print(
             f"Mode: PARALLEL worker {args.worker_id + 1}/{args.workers} "
             f"(same --workers in every CMD; unique --worker-id per tab)."
         )
     print(
-        f"Resume: {len(completed)} pair(s) in checkpoint; "
+        f"Resume: {len(completed)} key(s) in this tab's checkpoint; "
+        f"{len(global_skip)} total across all checkpoints; "
         f"existing PDFs ≥ {args.min_pdf_bytes} bytes are also skipped."
     )
     year_note = _year_range_note(args.min_year, args.max_year)
@@ -1258,10 +1525,21 @@ def main() -> int:
     total_saved = 0
     try:
         if args.law_url:
-            tiles = [{"href": args.law_url, "label": args.law_label}]
+            law_href = _normalize_tile_href(args.law_url, index_url)
+            tiles = [{"href": law_href, "label": args.law_label}]
             tiles_for_run = tiles
-            print(f"Direct law/book URL mode: {args.law_url}")
+            print(f"Direct law/book URL mode: {law_href}")
             print(f"Law label: {_slug(args.law_label)}")
+            if args.workers > 1:
+                _print_worker_shard_summary(
+                    out_dir,
+                    law_href,
+                    args.law_label,
+                    args.workers,
+                    args.worker_id,
+                    args.min_year,
+                    args.max_year,
+                )
         else:
             print(f"Opening {index_url} …")
             driver.get(index_url)
@@ -1302,47 +1580,100 @@ def main() -> int:
             if not href:
                 print(f"  [-] Tile {i} has no href; skip.")
                 continue
+            print(f"  -> Tile {i}: {label}")
+            tile_href = _normalize_tile_href(href, index_url)
             try:
-                print(f"  -> Tile {i}: {label}")
-                tile_href = urljoin(index_url, href)
-                driver.get(tile_href)
-                _set_chrome_download_path_cdp(driver, out_dir)
-                time.sleep(2.8)
-                driver = browser.get_driver()
-                wait = WebDriverWait(driver, 25)
-                total_saved += _iterate_category_year(
-                    driver,
-                    wait,
-                    cfg,
-                    out_dir,
-                    label,
-                    tile_href,
-                    completed,
-                    state_path,
-                    args.min_pdf_bytes,
-                    args.worker_id,
-                    args.workers,
-                    args.min_year,
-                    args.max_year,
-                    args.scan_progress,
-                    browser,
-                    log,
-                    runtime.download_poll_sec,
-                    tile_index=i,
-                    tiles_total=n_tiles,
-                    year_note=year_note,
-                    detailed_book_progress=not args.no_book_progress,
-                    ui=console,
-                    fast_plan=not args.no_fast_plan,
-                    force_book_scan=args.force_book_scan or args.scan_progress,
-                    use_progress_bar=not args.no_progress_bar,
-                )
-            except Exception as e:
-                log.exception("Tile %s (%s) error: %s", i, label, e)
-                print(f"  [!] Tile {i} ({label}) error: {e}")
-                browser.on_error()
-                driver = browser.maybe_restart(f"tile error: {e}", force=True)
-                wait = WebDriverWait(driver, 25)
+                tile_attempts = 0
+                max_tile_attempts = max(1, args.tile_retries)
+                while tile_attempts < max_tile_attempts:
+                    tile_attempts += 1
+                    try:
+                        if tile_attempts > 1:
+                            console.warn(
+                                f"Resuming tile {label} (attempt {tile_attempts}/{max_tile_attempts}) "
+                                "— checkpoint/PDF skip se jahan chhoda wahan se"
+                            )
+                        _safe_page_get(driver, tile_href, wait, out_dir, log)
+                        time.sleep(1.5)
+                        driver = browser.get_driver()
+                        wait = WebDriverWait(driver, 25)
+                        total_saved += _iterate_category_year(
+                            driver,
+                            wait,
+                            cfg,
+                            out_dir,
+                            label,
+                            tile_href,
+                            completed,
+                            state_path,
+                            args.min_pdf_bytes,
+                            args.worker_id,
+                            args.workers,
+                            args.min_year,
+                            args.max_year,
+                            args.scan_progress,
+                            browser,
+                            log,
+                            runtime.download_poll_sec,
+                            tile_index=i,
+                            tiles_total=n_tiles,
+                            year_note=year_note,
+                            detailed_book_progress=not args.no_book_progress,
+                            ui=console,
+                            fast_plan=not args.no_fast_plan,
+                            force_book_scan=args.force_book_scan or args.scan_progress,
+                            use_progress_bar=not args.no_progress_bar,
+                        )
+                        break
+                    except ShardIncompleteError as e:
+                        log.warning("Shard incomplete (attempt %s): %s", tile_attempts, e)
+                        console.warn(
+                            f"[worker {args.worker_id}] {e.remaining} PDF(s) baqi — "
+                            f"auto-resume attempt {tile_attempts}/{max_tile_attempts}"
+                        )
+                        if not args.until_complete and tile_attempts >= max_tile_attempts:
+                            console.warn(
+                                f"Stopped after {max_tile_attempts} rounds — "
+                                "dubara same command chalao ya --until-complete use karo."
+                            )
+                            break
+                        try:
+                            driver, wait = _recover_driver(
+                                browser,
+                                driver,
+                                wait,
+                                tile_href,
+                                out_dir,
+                                log,
+                                "shard incomplete",
+                            )
+                        except Exception as e2:
+                            console.warn(f"Recovery failed: {e2}")
+                        time.sleep(5.0)
+                        continue
+                    except Exception as e:
+                        log.exception(
+                            "Tile %s (%s) error (attempt %s): %s", i, label, tile_attempts, e
+                        )
+                        print(f"  [!] Tile {i} ({label}) error: {e}")
+                        if tile_attempts >= max_tile_attempts and not args.until_complete:
+                            console.warn(
+                                f"Tile stopped after {max_tile_attempts} attempts — "
+                                "same command dubara chalao; resume ho jayega."
+                            )
+                            break
+                        try:
+                            driver, wait = _recover_driver(
+                                browser,
+                                driver,
+                                wait,
+                                tile_href,
+                                out_dir,
+                                log,
+                                f"tile error: {e}",
+                            )
+                        except Exception as e2:
+                            console.warn(f"Tile recovery failed: {e2}")
             finally:
                 if not args.law_url:
                     try:

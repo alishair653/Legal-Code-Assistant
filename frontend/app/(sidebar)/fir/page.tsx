@@ -143,13 +143,100 @@ export default function FIRGeneratorPage() {
 
   const handleGenerate = async () => {
     setLoading(true);
-    for (let i = 0; i < LOADING_STEPS.length; i++) {
-      setLoadingIdx(i);
-      await new Promise((r) => setTimeout(r, 1100));
+    setLoadingIdx(0);
+
+    // Detect incident type from text for the API
+    const lower = incident.toLowerCase();
+    const type = lower.includes('snatch') || lower.includes('mobile') ? 'Mobile Snatching'
+      : lower.includes('robbery') || lower.includes('ghar') ? 'House Robbery'
+      : lower.includes('fraud') || lower.includes('invest') ? 'Fraud / Cheating'
+      : lower.includes('murder') || lower.includes('qatl') ? 'Murder'
+      : 'General Offense';
+
+    try {
+      // Step 1 animation
+      setLoadingIdx(0);
+      await new Promise((r) => setTimeout(r, 800));
+      setLoadingIdx(1);
+
+      // Call real Groq API to get sections + formal statement
+      const res = await fetch('/api/generate-fir', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ incident, type }),
+      });
+
+      setLoadingIdx(2);
+      await new Promise((r) => setTimeout(r, 600));
+
+      if (!res.ok) throw new Error('API error');
+
+      const data = await res.json();
+
+      // Build FIR document using API response (real sections + statement from Groq)
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' });
+      const timeStr = now.toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' });
+      const firNo = Math.floor(Math.random() * 900) + 100;
+
+      const fir = `FIRST INFORMATION REPORT
+(Under Section 154 Cr.P.C.)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+District:         ${details.district}
+Police Station:   ${details.station}
+FIR No.:          ${firNo}/${now.getFullYear()}
+Date:             ${dateStr}
+Time:             ${timeStr}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+COMPLAINANT DETAILS
+
+Name:             ${details.name}
+Father's Name:    ${details.fatherName}
+Address:          ${details.address}
+CNIC:             ${details.cnic || 'Not Provided'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STATEMENT OF COMPLAINANT
+
+${data.statement || incident}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OFFENCES ALLEGED
+
+${(data.sections as string[]).map((s: string, i: number) => `  ${i + 1}. ${s}`).join('\n')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+NATURE OF OFFENCE
+Cognizable:       ${data.cognizable ? 'Yes' : 'No'}
+Bailable:         ${data.bailable ? 'Yes' : 'No'}
+Punishment:       ${data.punishment || 'As per applicable sections'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Complainant Signature          Officer in Charge
+
+Name: ${details.name}          Name: ____________________
+Date: ${dateStr}               Designation: ______________
+                               Badge No.: ________________
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Note: Verify all legal sections with a qualified attorney.`;
+
+      setFirText(fir);
+      setStep(3);
+
+    } catch {
+      toast.error('Failed to generate FIR. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    setFirText(generateFIR(incident, details));
-    setLoading(false);
-    setStep(3);
   };
 
   const handleCopy = () => {
