@@ -26,7 +26,7 @@ export function RoleCard({ title, description, icon: Icon, onClick, delay = 0 }:
         <div className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-300 gradient-gold" />
         <div className="relative z-10">
           <div className="w-14 h-14 rounded-xl gradient-gold flex items-center justify-center mb-5 shadow-md group-hover:shadow-lg transition-shadow">
-            <Icon className="w-7 h-7 text-primary" />
+            <Icon className="w-7 h-7 text-[hsl(220,60%,12%)]" />
           </div>
           <h3 className="text-xl font-bold mb-2 text-foreground">{title}</h3>
           <p className="text-muted-foreground text-sm leading-relaxed">{description}</p>

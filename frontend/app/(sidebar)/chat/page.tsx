@@ -21,7 +21,7 @@ export default function ChatPage() {
       <div className="flex-1 flex items-center justify-center">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center max-w-md px-4">
           <div className="w-16 h-16 rounded-2xl gradient-gold flex items-center justify-center mx-auto mb-6 shadow-lg">
-            <Scale className="w-9 h-9 text-primary" />
+            <Scale className="w-9 h-9 text-[hsl(220,60%,12%)]" />
           </div>
           <h1 className="text-2xl font-bold mb-3">Legal Code Assistant</h1>
           <p className="text-muted-foreground text-sm mb-8 font-sans">

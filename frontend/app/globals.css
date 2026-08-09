@@ -117,9 +117,49 @@
   }
 }
 
+/* ── Print styles: show only FIR document ─────────────────────────────────── */
+@media print {
+  @page {
+    size: A4;
+    margin: 1cm;
+  }
+
+  /* Hide everything */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* Show only the FIR print area */
+  #fir-print-area,
+  #fir-print-area * {
+    visibility: visible !important;
+  }
+
+  #fir-print-area {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  /* Force table borders to print */
+  #fir-print-area table,
+  #fir-print-area td,
+  #fir-print-area th {
+    border-color: #000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
 @layer utilities {
   .gradient-gold {
     background: linear-gradient(135deg, hsl(45 80% 55%), hsl(38 90% 65%));
+  }
+  .gradient-gold-deep {
+    background: linear-gradient(135deg, hsl(42 90% 42%), hsl(36 95% 50%));
   }
   .gradient-navy {
     background: linear-gradient(135deg, hsl(220 60% 15%), hsl(220 50% 25%));

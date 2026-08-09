@@ -71,7 +71,7 @@ export function UpgradeModal({ isOpen, onClose, feature = 'default' }: UpgradeMo
                 </button>
 
                 <div className="w-14 h-14 rounded-2xl gradient-gold flex items-center justify-center mx-auto mb-3 shadow-lg">
-                  <Lock className="w-7 h-7 text-primary" />
+                  <Lock className="w-7 h-7 text-[hsl(220,60%,12%)]" />
                 </div>
                 <h2 className="text-lg font-bold text-white">Upgrade to Pro</h2>
                 <p className="text-white/60 text-xs font-sans mt-1">
@@ -98,7 +98,7 @@ export function UpgradeModal({ isOpen, onClose, feature = 'default' }: UpgradeMo
 
                 <Button
                   onClick={handleUpgrade}
-                  className="w-full gradient-gold text-primary font-semibold rounded-xl h-11"
+                  className="w-full gradient-gold text-[hsl(220,60%,12%)] font-semibold rounded-xl h-11"
                 >
                   <Crown className="w-4 h-4 mr-2" /> Upgrade Now
                   <ArrowRight className="w-4 h-4 ml-2" />

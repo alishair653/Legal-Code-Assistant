@@ -48,7 +48,7 @@ export default function SignupPage() {
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 70% 50%, hsl(45 80% 55% / 0.4) 0%, transparent 60%)' }} />
         <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} className="relative text-center">
           <div className="w-20 h-20 rounded-2xl gradient-gold flex items-center justify-center mx-auto mb-8 shadow-xl">
-            <Scale className="w-11 h-11 text-primary" />
+            <Scale className="w-11 h-11 text-[hsl(220,60%,12%)]" />
           </div>
           <h1 className="text-4xl font-extrabold text-white mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>
             Join <span className="text-gradient-gold">Legal Code AI</span>
@@ -63,7 +63,7 @@ export default function SignupPage() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm">
           <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
             <div className="w-10 h-10 rounded-xl gradient-gold flex items-center justify-center">
-              <Scale className="w-6 h-6 text-primary" />
+              <Scale className="w-6 h-6 text-[hsl(220,60%,12%)]" />
             </div>
             <span className="text-xl font-bold" style={{ fontFamily: "'Playfair Display', serif" }}>Legal Code AI</span>
           </div>
@@ -100,7 +100,7 @@ export default function SignupPage() {
                 </button>
               </div>
             </div>
-            <Button type="submit" disabled={loading} className="w-full h-11 rounded-xl gradient-gold text-primary font-semibold hover:opacity-90">
+            <Button type="submit" disabled={loading} className="w-full h-11 rounded-xl gradient-gold text-[hsl(220,60%,12%)] font-semibold hover:opacity-90">
               {loading ? 'Creating account...' : 'Create Account'}
             </Button>
           </form>
