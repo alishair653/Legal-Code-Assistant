@@ -1,0 +1,6 @@
+# Step 5: embeddings + Qdrant upload
+sentence-transformers>=2.7.0
+qdrant-client>=1.9.0
+python-dotenv>=1.0.0
+tqdm>=4.66.0
+torch>=2.0.0

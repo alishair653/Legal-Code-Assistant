@@ -66,7 +66,7 @@ export function AppSidebar() {
       <SidebarHeader className="p-3">
         <div className="flex items-center gap-2 px-1">
           <div className="w-8 h-8 rounded-lg gradient-gold flex items-center justify-center shrink-0">
-            <Scale className="w-4 h-4 text-primary" />
+            <Scale className="w-4 h-4 text-[hsl(220,60%,12%)]" />
           </div>
           <span className="font-bold text-sm text-sidebar-foreground truncate" style={{ fontFamily: "'Playfair Display', serif" }}>
             Legal Code AI
@@ -74,7 +74,7 @@ export function AppSidebar() {
         </div>
         <Button
           onClick={handleNewChat}
-          className="w-full mt-3 gradient-gold text-primary hover:opacity-90 font-semibold text-sm rounded-xl h-9"
+          className="w-full mt-3 gradient-gold text-[hsl(220,60%,12%)] hover:opacity-90 font-semibold text-sm rounded-xl h-9"
           size="sm"
         >
           <Plus className="w-4 h-4" />

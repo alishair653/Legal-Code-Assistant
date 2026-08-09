@@ -74,12 +74,19 @@ export default function ChatWithIdPage({ params }: { params: Promise<{ chatId: s
     setIsLoading(true);
 
     try {
-      // Call real Groq API — sends text + optional image
+      // Build conversation history (last 10 messages, excluding the one just added)
+      const allMessages = chat!.messages;
+      const history = allMessages
+        .slice(-5, -1) // last 4 before the one we just added
+        .map((m) => ({ role: m.isBot ? 'assistant' : 'user', content: m.text }));
+
+      // Call real Groq API — sends text + optional image + conversation history
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: sentMessage,
+          conversationHistory: history,
           ...(sentImage && { image: sentImage }),
         }),
       });
@@ -226,7 +233,7 @@ export default function ChatWithIdPage({ params }: { params: Promise<{ chatId: s
             {/* Send button */}
             <Button type="submit" size="icon"
               disabled={(!input.trim() && !pastedImage) || isLoading}
-              className="h-10 w-10 rounded-xl gradient-gold text-primary shrink-0 hover:opacity-90 disabled:opacity-40"
+              className="h-10 w-10 rounded-xl gradient-gold text-[hsl(220,60%,12%)] shrink-0 hover:opacity-90 disabled:opacity-50"
             >
               <Send className="w-5 h-5" />
             </Button>

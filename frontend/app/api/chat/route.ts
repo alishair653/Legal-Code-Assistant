@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { groq, GROQ_TEXT_MODEL, GROQ_VISION_MODEL, LEGAL_SYSTEM_PROMPT, VISION_SYSTEM_PROMPT } from '@/lib/groq';
+import { formatSectionsForPrompt, searchLegalSections } from '@/lib/qdrant';
 import { getCurrentUser } from '@/lib/supabase';
 import { getUserPlan, checkDailyLimit, incrementUsage, saveQuery } from '@/lib/supabase-admin';
 
@@ -73,13 +74,28 @@ export async function POST(req: NextRequest) {
       });
       answer = response.choices[0]?.message?.content ?? 'Could not analyze the image.';
     } else {
-      // Text mode — regular legal question
+      // Text mode — RAG: search Qdrant then answer with Groq
+      let ragContext = '';
+      try {
+        const hits = await searchLegalSections(message.trim(), 5);
+        ragContext = formatSectionsForPrompt(hits);
+      } catch (ragErr) {
+        console.warn('[/api/chat] Qdrant search failed, falling back to LLM only:', ragErr);
+      }
+
+      const systemContent = ragContext
+        ? `${LEGAL_SYSTEM_PROMPT}
+
+RELEVANT LAW SECTIONS FROM DATABASE (use these as primary sources; cite full_reference):
+${ragContext}`
+        : LEGAL_SYSTEM_PROMPT;
+
       const response = await groq.chat.completions.create({
         model: GROQ_TEXT_MODEL,
         temperature: 0.3,
         max_tokens: 1024,
         messages: [
-          { role: 'system', content: LEGAL_SYSTEM_PROMPT },
+          { role: 'system', content: systemContent },
           { role: 'user', content: message.trim() },
         ],
       });

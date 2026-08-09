@@ -40,8 +40,27 @@ __pycache__/
 *.py[cod]
 ai-ml-module/.venv/
 
-# large local data — PDFs excluded from git
+# ML model cache — large binary files, never commit
+frontend/.xenova-cache/
+**/.xenova-cache/
+*.onnx
+*.safetensors
+
+# Hugging Face / local model caches
+.cache/
+**/huggingface/
+**/.cache/huggingface/
+
+# large local data — PDFs and extracted JSON excluded from git
 legal-data/raw-pdfs/
+legal-data/extracted/
+legal-data/processed/
+!**/.gitkeep
+
+# Embedding / extraction local checkpoints
+**/.embeddings_progress.json
+**/.extract_progress*.json
+**/scraper_progress*.json
 
 # Selenium scraper resume checkpoint (local only)
 **/.pakistan_code_scraper_state.json
@@ -49,3 +68,20 @@ legal-data/raw-pdfs/
 **/.pakistan_code_scraper_state.json.tmp
 **/.book_stats.json
 **/.book_plan_cache_*.json
+
+# ai-ml-module config with real selectors (keep example, ignore real)
+ai-ml-module/config/pakistan_code_selectors.json
+
+# FYP documentation — local only, not for repo
+docs/
+generate_fyp_doc.py
+FYP_Documentation_Content.md
+
+# Word/PDF report files in repo root
+*.docx
+*.pdf
+
+# Python virtualenvs / local tooling
+.venv/
+venv/
+*.egg-info/
