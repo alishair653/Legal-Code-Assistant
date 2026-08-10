@@ -16,14 +16,10 @@ export default function HomePage() {
   const handleSearch = (query: string) => {
     const id = addChat('citizen');
     useChatStore.getState().addMessage(id, query, false);
-    setTimeout(() => {
-      const lower = query.toLowerCase();
-      let response = "Based on Pakistani law, I can help you understand the relevant legal provisions. Could you provide more details?";
-      if (lower.includes('theft') || lower.includes('chori')) response = "Under PPC Section 378-382, theft is punishable by 3-7 years imprisonment with fine.";
-      else if (lower.includes('bail')) response = "Bail eligibility depends on the offense. Bailable offenses allow bail as of right under CrPC.";
-      else if (lower.includes('fir')) response = "An FIR is filed under CrPC Section 154. Police must register for cognizable offenses.";
-      useChatStore.getState().addMessage(id, response, true);
-    }, 600);
+    // Chat page will call the real /api/chat for unanswered user messages
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(`pending-chat-${id}`, '1');
+    }
     router.push(`/chat/${id}`);
   };
 

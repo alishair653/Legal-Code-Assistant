@@ -36,30 +36,7 @@ interface ChatStore {
 const generateId = () => Math.random().toString(36).substring(2, 10);
 
 export const useChatStore = create<ChatStore>((set) => ({
-  chats: [
-    {
-      id: 'demo-1',
-      title: 'PPC Section 302 - Murder',
-      messages: [
-        { text: "Welcome! I'm your Legal Code Assistant for Pakistani criminal law. How can I help?", isBot: true },
-        { text: 'What is the punishment for murder under PPC?', isBot: false },
-        { text: "Under PPC Section 302, murder (Qatl-i-Amd) is punishable by death as Qisas, or imprisonment for life as Ta'zir with possible fine. The heirs of the victim may also opt for Diyat (blood money) under Section 310.", isBot: true },
-      ],
-      role: 'citizen',
-      createdAt: new Date(Date.now() - 86400000),
-    },
-    {
-      id: 'demo-2',
-      title: 'Bail Eligibility Query',
-      messages: [
-        { text: "Welcome, Counsellor. How can I assist you today?", isBot: true },
-        { text: 'Is bail available for Section 420 fraud cases?', isBot: false },
-        { text: 'Section 420 (cheating/fraud) is a non-bailable offense. Bail requires court discretion under CrPC Section 497. However, anticipatory bail may be sought under Section 498 in some circumstances.', isBot: true },
-      ],
-      role: 'lawyer',
-      createdAt: new Date(Date.now() - 3600000),
-    },
-  ],
+  chats: [],
   activeChatId: null,
   isLoggedIn: false,
   isPro: false,

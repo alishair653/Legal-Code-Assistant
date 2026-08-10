@@ -6,7 +6,6 @@ import { CheckCircle2, Crown, ArrowRight, Scale, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { useChatStore } from '@/store/chatStore';
 
 const PRO_FEATURES = [
   'Unlimited legal queries — no daily cap',
@@ -19,12 +18,9 @@ const PRO_FEATURES = [
 
 export default function PaymentSuccessPage() {
   const router = useRouter();
-  const { upgradeToPro } = useChatStore();
   const [countdown, setCountdown] = useState(8);
 
-  useEffect(() => {
-    upgradeToPro();
-  }, [upgradeToPro]);
+  // Pro is activated only after a verified payment webhook — do not unlock from this URL alone.
 
   useEffect(() => {
     if (countdown <= 0) { router.push('/dashboard'); return; }
@@ -67,7 +63,7 @@ export default function PaymentSuccessPage() {
         >
           <h1 className="text-2xl font-bold">Payment Successful!</h1>
           <p className="text-muted-foreground font-sans text-sm">
-            Welcome to <span className="text-accent font-semibold">Legal Code AI Pro</span>. Your account has been upgraded.
+            Thanks. Pro unlocks after the payment provider confirms the transaction — this page alone does not grant access.
           </p>
         </motion.div>
 
@@ -76,7 +72,7 @@ export default function PaymentSuccessPage() {
           <Card className="p-5 space-y-3">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-accent" />
-              <p className="text-sm font-semibold">You now have access to</p>
+              <p className="text-sm font-semibold">Pro includes</p>
             </div>
             <ul className="space-y-2">
               {PRO_FEATURES.map((f) => (

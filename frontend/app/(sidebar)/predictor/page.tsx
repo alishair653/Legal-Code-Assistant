@@ -163,7 +163,7 @@ export default function CasePredictorPage() {
         <SidebarTrigger className="mr-2" />
         <Scale className="w-4 h-4 text-accent mr-2" />
         <span className="text-sm font-semibold">Case Predictor</span>
-        <span className="ml-2 text-xs text-muted-foreground font-sans">AI-powered outcome estimation</span>
+        <span className="ml-2 text-xs text-muted-foreground font-sans">Rule-based estimate (not a court prediction)</span>
       </header>
 
       <div className="flex-1 overflow-y-auto">

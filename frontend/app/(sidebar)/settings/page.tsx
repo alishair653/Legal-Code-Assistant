@@ -77,7 +77,7 @@ export default function SettingsPage() {
               </h3>
               <div className="space-y-3 font-sans text-sm text-muted-foreground">
                 <div className="flex justify-between"><span>Version</span><span className="text-foreground">1.0.0</span></div>
-                <div className="flex justify-between"><span>Model</span><span className="text-foreground">Legal Code AI v2</span></div>
+                <div className="flex justify-between"><span>Model</span><span className="text-foreground">Groq + Qdrant RAG</span></div>
                 <div className="flex justify-between"><span>Laws Covered</span><span className="text-foreground">All Pakistani Codes</span></div>
               </div>
             </Card>

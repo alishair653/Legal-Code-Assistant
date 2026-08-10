@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useChatStore } from '@/store/chatStore';
+import { toast } from 'sonner';
 
 const plans = [
   {
@@ -31,8 +32,8 @@ const plans = [
     name: 'Enterprise',
     price: 'Custom',
     period: '',
-    description: 'For law firms and institutions',
-    features: ['Everything in Pro', 'Custom AI training', 'Team collaboration', 'API access', 'Dedicated support', 'Custom integrations', 'Analytics dashboard', 'SLA guarantee'],
+    description: 'For law firms and institutions (on request)',
+    features: ['Everything in Pro', 'Team accounts', 'Priority support', 'Custom onboarding'],
     cta: 'Contact Sales',
     popular: false,
   },
@@ -40,12 +41,13 @@ const plans = [
 
 export default function PricingPage() {
   const router = useRouter();
-  const { upgradeToPro, isLoggedIn, isPro } = useChatStore();
+  const { isLoggedIn, isPro } = useChatStore();
 
   const handleUpgrade = () => {
     if (!isLoggedIn) { router.push('/signup'); return; }
-    upgradeToPro();
-    router.push('/chat');
+    toast.message('Payment not connected yet', {
+      description: 'Pro unlocks only after a real JazzCash payment — no fake upgrades.',
+    });
   };
 
   return (

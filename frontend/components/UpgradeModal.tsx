@@ -13,8 +13,8 @@ interface UpgradeModalProps {
 
 const FEATURE_DESCRIPTIONS: Record<string, { icon: string; desc: string }> = {
   fir: { icon: '📄', desc: 'Generate professional FIRs with auto-detected PPC sections from your incident description.' },
-  predictor: { icon: '⚖️', desc: 'Get AI-powered bail probability and conviction risk estimates for any case.' },
-  analyzer: { icon: '🔍', desc: 'Upload FIRs, contracts, and legal notices for instant AI-powered legal review.' },
+  predictor: { icon: '⚖️', desc: 'Get rule-based bail and conviction risk estimates for any case.' },
+  analyzer: { icon: '🔍', desc: 'Document review will use real AI once OCR is connected — use Chat for now.' },
   voice: { icon: '🎙️', desc: 'Ask legal questions by speaking in English or Roman Urdu — hands-free assistance.' },
   history: { icon: '🕓', desc: 'Access your full query history, search past answers, and export as CSV.' },
   default: { icon: '✨', desc: 'Unlock all Pro features for unlimited legal assistance.' },
@@ -92,7 +92,7 @@ export function UpgradeModal({ isOpen, onClose, feature = 'default' }: UpgradeMo
               {/* Price + CTA */}
               <div className="px-6 pb-6 space-y-3">
                 <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-3xl font-extrabold">Rs. 499</span>
+                  <span className="text-3xl font-extrabold">Rs. 999</span>
                   <span className="text-muted-foreground font-sans text-sm">/ month</span>
                 </div>
 

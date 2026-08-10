@@ -556,11 +556,11 @@ export default function FIRGeneratorPage() {
 
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
-                    <div>
+                  <div>
                       <label className="text-xs font-semibold text-muted-foreground mb-1.5 block font-sans">Full Name (نام) *</label>
                       <Input value={details.name} onChange={(e) => setDetails({...details, name: e.target.value})} placeholder="Muhammad Ali" className="rounded-xl font-sans h-10" />
-                    </div>
-                    <div>
+                  </div>
+                  <div>
                       <label className="text-xs font-semibold text-muted-foreground mb-1.5 block font-sans">Father&apos;s Name (ولد) *</label>
                       <Input value={details.fatherName} onChange={(e) => setDetails({...details, fatherName: e.target.value})} placeholder="Muhammad Ibrahim" className="rounded-xl font-sans h-10" />
                     </div>
@@ -573,8 +573,8 @@ export default function FIRGeneratorPage() {
                     <div>
                       <label className="text-xs font-semibold text-muted-foreground mb-1.5 block font-sans">CNIC (شناختی کارڈ)</label>
                       <Input value={details.cnic} onChange={(e) => setDetails({...details, cnic: e.target.value})} placeholder="35202-1234567-1" className="rounded-xl font-sans h-10" maxLength={15} />
-                    </div>
-                    <div>
+                  </div>
+                  <div>
                       <label className="text-xs font-semibold text-muted-foreground mb-1.5 block font-sans">Phone (فون نمبر)</label>
                       <Input value={details.phone} onChange={(e) => setDetails({...details, phone: e.target.value})} placeholder="0325-1234567" className="rounded-xl font-sans h-10" maxLength={15} />
                     </div>
@@ -721,8 +721,8 @@ export default function FIRGeneratorPage() {
                         {firData.bailable ? '🟢 Bailable' : '🔴 Non-bailable'}
                       </span>
                       {firData.punishment && <span className="text-muted-foreground">⚖️ {firData.punishment}</span>}
-                    </div>
-                  </Card>
+                  </div>
+                </Card>
                 )}
 
                 {/* FIR Document — always white/black like real paper */}

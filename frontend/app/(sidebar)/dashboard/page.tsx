@@ -1,10 +1,11 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useChatStore } from '@/store/chatStore';
 import { motion } from 'framer-motion';
 import {
   MessageSquare, FileText, Scale, Crown, TrendingUp,
-  ClipboardCheck, History, ChevronRight, User, Zap,
+  ClipboardCheck, History, ChevronRight, Zap,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
@@ -14,30 +15,14 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 
-const WEEKLY_DATA = [
-  { day: 'Mon', queries: 4 },
-  { day: 'Tue', queries: 7 },
-  { day: 'Wed', queries: 3 },
-  { day: 'Thu', queries: 9 },
-  { day: 'Fri', queries: 6 },
-  { day: 'Sat', queries: 2 },
-  { day: 'Sun', queries: 5 },
-];
-
-const TOP_SECTIONS = [
-  { ref: 'PPC § 302', title: 'Punishment for Murder', count: 18 },
-  { ref: 'PPC § 420', title: 'Cheating / Fraud', count: 14 },
-  { ref: 'CrPC § 154', title: 'FIR Registration', count: 11 },
-  { ref: 'PPC § 392', title: 'Robbery', count: 9 },
-  { ref: 'PPC § 337', title: 'Causing Hurt', count: 7 },
-];
-
 const QUICK_ACTIONS = [
   { label: 'New Chat', icon: MessageSquare, route: '/chat', color: 'text-blue-500', bg: 'bg-blue-500/10' },
   { label: 'FIR Generator', icon: FileText, route: '/fir', color: 'text-accent', bg: 'bg-accent/10' },
   { label: 'Self-Assessment', icon: ClipboardCheck, route: '/assessment', color: 'text-green-500', bg: 'bg-green-500/10' },
   { label: 'View History', icon: History, route: '/history', color: 'text-purple-500', bg: 'bg-purple-500/10' },
 ];
+
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function StatCard({
   icon: Icon, label, value, sub, color, delay,
@@ -60,15 +45,71 @@ function StatCard({
   );
 }
 
+function extractSectionRefs(text: string): string[] {
+  const found = new Set<string>();
+  const patterns = [
+    /\b(?:PPC|CrPC|QSO)\s*§?\s*\d+[A-Za-z]*/gi,
+    /\bSection\s+(\d+[A-Za-z]*)\b/gi,
+    /\bArticle\s+(\d+[A-Za-z]*)\b/gi,
+  ];
+  for (const re of patterns) {
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text)) !== null) {
+      const raw = m[0].replace(/\s+/g, ' ').trim();
+      found.add(raw);
+    }
+  }
+  return [...found];
+}
+
 export default function DashboardPage() {
-  const { user, isPro, chats, isLoggedIn } = useChatStore();
+  const { user, isPro, chats } = useChatStore();
   const router = useRouter();
 
   const totalMessages = chats.reduce((acc, c) => acc + c.messages.filter((m) => !m.isBot).length, 0);
   const recentChats = [...chats].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).slice(0, 5);
 
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todaysQueries = chats.reduce((acc, c) => {
+    if (c.createdAt < todayStart) return acc;
+    return acc + c.messages.filter((m) => !m.isBot).length;
+  }, 0);
+
+  const weeklyData = useMemo(() => {
+    const counts = [0, 0, 0, 0, 0, 0, 0];
+    const weekAgo = Date.now() - 7 * 86400000;
+    for (const chat of chats) {
+      for (const msg of chat.messages) {
+        if (msg.isBot) continue;
+        const t = chat.createdAt.getTime();
+        if (t < weekAgo) continue;
+        counts[chat.createdAt.getDay()] += 1;
+      }
+    }
+    // Mon → Sun order for chart
+    const order = [1, 2, 3, 4, 5, 6, 0];
+    return order.map((d) => ({ day: DAY_LABELS[d], queries: counts[d] }));
+  }, [chats]);
+
+  const topSections = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const chat of chats) {
+      for (const msg of chat.messages) {
+        if (!msg.isBot) continue;
+        for (const ref of extractSectionRefs(msg.text)) {
+          counts.set(ref, (counts.get(ref) || 0) + 1);
+        }
+      }
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([ref, count]) => ({ ref, count }));
+  }, [chats]);
+
   const displayName = user?.name ?? 'Guest';
-  const plan = isPro ? 'Pro' : 'Free';
+  const hasWeekly = weeklyData.some((d) => d.queries > 0);
 
   return (
     <div className="flex-1 flex flex-col min-h-screen bg-background">
@@ -81,48 +122,46 @@ export default function DashboardPage() {
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
 
-          {/* Welcome */}
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between flex-wrap gap-3">
             <div>
               <h1 className="text-2xl font-bold">Welcome back, {displayName}</h1>
-              <p className="text-muted-foreground text-sm font-sans mt-0.5">Here is your legal assistant overview</p>
+              <p className="text-muted-foreground text-sm font-sans mt-0.5">Your real activity from this account</p>
             </div>
             <span className={`text-xs font-semibold px-3 py-1.5 rounded-full font-sans ${isPro ? 'gradient-gold text-primary' : 'bg-muted text-muted-foreground'}`}>
               {isPro ? '★ Pro Plan' : 'Free Plan'}
             </span>
           </motion.div>
 
-          {/* Stat cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard icon={MessageSquare} label="Total Chats" value={chats.length} sub="All time" color="bg-blue-500/10 text-blue-500" delay={0.05} />
             <StatCard icon={Scale} label="Queries Asked" value={totalMessages} sub="All time" color="bg-accent/10 text-accent" delay={0.1} />
-            <StatCard icon={FileText} label="FIRs Generated" value={3} sub="This month" color="bg-green-500/10 text-green-500" delay={0.15} />
-            <StatCard icon={Zap} label="Today's Queries" value={isPro ? '∞' : '10'} sub={isPro ? 'Unlimited' : 'Free tier limit'} color="bg-purple-500/10 text-purple-500" delay={0.2} />
+            <StatCard icon={FileText} label="FIRs Generated" value={0} sub="Tracked when saved" color="bg-green-500/10 text-green-500" delay={0.15} />
+            <StatCard icon={Zap} label="Today's Queries" value={todaysQueries} sub={isPro ? 'Pro — unlimited' : 'Free tier'} color="bg-purple-500/10 text-purple-500" delay={0.2} />
           </div>
 
-          {/* Chart + Quick Actions */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-            {/* Bar chart */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="lg:col-span-2">
               <Card className="p-5 h-full">
                 <p className="text-sm font-semibold mb-4">Queries This Week</p>
-                <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={WEEKLY_DATA} barSize={28}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 20% 88%)" vertical={false} />
-                    <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'hsl(220 15% 50%)' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: 'hsl(220 15% 50%)' }} axisLine={false} tickLine={false} width={24} />
-                    <Tooltip
-                      contentStyle={{ background: 'hsl(0 0% 100%)', border: '1px solid hsl(220 20% 88%)', borderRadius: 10, fontSize: 12 }}
-                      cursor={{ fill: 'hsl(220 20% 92%)' }}
-                    />
-                    <Bar dataKey="queries" fill="hsl(45 80% 55%)" radius={[6, 6, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                {hasWeekly ? (
+                  <ResponsiveContainer width="100%" height={180}>
+                    <BarChart data={weeklyData} barSize={28}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 20% 88%)" vertical={false} />
+                      <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'hsl(220 15% 50%)' }} axisLine={false} tickLine={false} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'hsl(220 15% 50%)' }} axisLine={false} tickLine={false} width={24} />
+                      <Tooltip
+                        contentStyle={{ background: 'hsl(0 0% 100%)', border: '1px solid hsl(220 20% 88%)', borderRadius: 10, fontSize: 12 }}
+                        cursor={{ fill: 'hsl(220 20% 92%)' }}
+                      />
+                      <Bar dataKey="queries" fill="hsl(45 80% 55%)" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-sm text-muted-foreground font-sans text-center py-12">No queries this week yet.</p>
+                )}
               </Card>
             </motion.div>
 
-            {/* Quick actions */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
               <Card className="p-5 h-full">
                 <p className="text-sm font-semibold mb-4">Quick Actions</p>
@@ -145,10 +184,7 @@ export default function DashboardPage() {
             </motion.div>
           </div>
 
-          {/* Recent chats + Top sections */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-            {/* Recent chats */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
               <Card className="p-5">
                 <div className="flex items-center justify-between mb-4">
@@ -179,35 +215,38 @@ export default function DashboardPage() {
               </Card>
             </motion.div>
 
-            {/* Top sections */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
               <Card className="p-5">
                 <p className="text-sm font-semibold mb-4">Most Queried Sections</p>
-                <div className="space-y-3">
-                  {TOP_SECTIONS.map((s, i) => (
-                    <div key={s.ref} className="flex items-center gap-3">
-                      <span className="text-xs text-muted-foreground font-sans w-4 shrink-0">{i + 1}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-semibold text-accent font-sans">{s.ref}</span>
-                          <span className="text-xs text-muted-foreground font-sans">{s.count}</span>
+                {topSections.length === 0 ? (
+                  <p className="text-sm text-muted-foreground font-sans text-center py-6">
+                    Sections you discuss in chat will appear here.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {topSections.map((s, i) => (
+                      <div key={s.ref} className="flex items-center gap-3">
+                        <span className="text-xs text-muted-foreground font-sans w-4 shrink-0">{i + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-semibold text-accent font-sans truncate">{s.ref}</span>
+                            <span className="text-xs text-muted-foreground font-sans">{s.count}</span>
+                          </div>
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full gradient-gold rounded-full transition-all duration-700"
+                              style={{ width: `${(s.count / topSections[0].count) * 100}%` }}
+                            />
+                          </div>
                         </div>
-                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className="h-full gradient-gold rounded-full transition-all duration-700"
-                            style={{ width: `${(s.count / TOP_SECTIONS[0].count) * 100}%` }}
-                          />
-                        </div>
-                        <p className="text-xs text-muted-foreground font-sans mt-0.5 truncate">{s.title}</p>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </Card>
             </motion.div>
           </div>
 
-          {/* Upgrade banner — only for free users */}
           {!isPro && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
               <Card className="p-5 gradient-navy border-0 flex items-center justify-between flex-wrap gap-4">
@@ -219,28 +258,10 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <Button
-                  className="gradient-gold text-primary font-semibold rounded-xl shrink-0"
+                  className="gradient-gold text-[hsl(220,60%,12%)] font-semibold rounded-xl hover:opacity-90"
                   onClick={() => router.push('/pricing')}
                 >
                   View Plans
-                </Button>
-              </Card>
-            </motion.div>
-          )}
-
-          {/* Guest prompt */}
-          {!isLoggedIn && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
-              <Card className="p-5 border-dashed flex items-center justify-between flex-wrap gap-4">
-                <div className="flex items-center gap-3">
-                  <User className="w-5 h-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium text-sm">Sign in to save your progress</p>
-                    <p className="text-xs text-muted-foreground font-sans">Your chats and history will be saved to your account</p>
-                  </div>
-                </div>
-                <Button variant="outline" className="rounded-xl shrink-0 font-sans text-sm" onClick={() => router.push('/login')}>
-                  Sign In
                 </Button>
               </Card>
             </motion.div>

@@ -101,18 +101,6 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <div className="mt-6 relative">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
-            <div className="relative flex justify-center text-xs"><span className="bg-background px-3 text-muted-foreground">or continue with</span></div>
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <Button variant="outline" className="h-10 rounded-xl" onClick={() => { login('demo@google.com', ''); router.push('/chat'); }}>
-              <span className="mr-2">G</span> Google
-            </Button>
-            <Button variant="outline" className="h-10 rounded-xl" onClick={() => { login('demo@github.com', ''); router.push('/chat'); }}>
-              GitHub
-            </Button>
-          </div>
         </motion.div>
       </div>
     </div>

@@ -13,19 +13,14 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useChatStore } from '@/store/chatStore';
 import { toast } from 'sonner';
 
-// Mock history entries to supplement real chat data
-const MOCK_HISTORY = [
-  { id: 'm1', question: 'What is the punishment for murder under PPC?', answer: 'Under PPC Section 302, murder (Qatl-i-Amd) is punishable by death as Qisas, or imprisonment for life as Ta\'zir. Heirs may opt for Diyat under Section 310.', sections: ['PPC § 302', 'PPC § 310'], date: new Date(Date.now() - 1 * 86400000), type: 'chat' },
-  { id: 'm2', question: 'Is bail available for Section 420 fraud cases?', answer: 'Section 420 (cheating/fraud) is non-bailable. Bail requires court discretion under CrPC Section 497. Anticipatory bail may be sought under Section 498.', sections: ['PPC § 420', 'CrPC § 497', 'CrPC § 498'], date: new Date(Date.now() - 1 * 86400000), type: 'chat' },
-  { id: 'm3', question: 'How to file an FIR in Pakistan?', answer: 'An FIR is filed under CrPC Section 154. Visit the nearest police station and provide a written or oral complaint. If police refuse, approach the SP or file under Section 22-A before a Sessions Judge.', sections: ['CrPC § 154', 'CrPC § 22-A'], date: new Date(Date.now() - 2 * 86400000), type: 'chat' },
-  { id: 'm4', question: 'What are the rights of an accused during arrest?', answer: 'Under Article 10 of the Constitution and CrPC Section 50, an arrested person must be informed of grounds of arrest, has the right to consult a lawyer, and must be produced before a magistrate within 24 hours.', sections: ['Constitution Art. 10', 'CrPC § 50'], date: new Date(Date.now() - 3 * 86400000), type: 'chat' },
-  { id: 'm5', question: 'What is the difference between bailable and non-bailable offences?', answer: 'Bailable offences (Schedule II CrPC) grant bail as a right to the accused. Non-bailable offences require court discretion under CrPC Section 497. Serious crimes like murder (302), robbery (392) are non-bailable.', sections: ['CrPC § 497', 'CrPC Schedule II'], date: new Date(Date.now() - 4 * 86400000), type: 'chat' },
-  { id: 'm6', question: 'Penalty for theft under PPC?', answer: 'Under PPC Section 378-382, theft (chori) is punishable by up to 3 years imprisonment or fine or both. For robbery (Section 392), punishment extends to 10 years rigorous imprisonment.', sections: ['PPC § 378', 'PPC § 382', 'PPC § 392'], date: new Date(Date.now() - 5 * 86400000), type: 'chat' },
-  { id: 'm7', question: 'FIR generated for mobile snatching', answer: 'FIR generated with sections: Section 392 PPC (Robbery), Section 382 PPC, Section 13 Arms Act 1878.', sections: ['PPC § 392', 'PPC § 382'], date: new Date(Date.now() - 6 * 86400000), type: 'fir' },
-  { id: 'm8', question: 'What is Qanun-e-Shahadat Order 1984?', answer: 'QSO 1984 governs the law of evidence in Pakistan. It replaced the Evidence Act 1872. Key provisions include Article 17 (competency of witnesses), Article 133 (examination of witnesses), and rules on documentary evidence.', sections: ['QSO Art. 17', 'QSO Art. 133'], date: new Date(Date.now() - 7 * 86400000), type: 'chat' },
-];
-
-type HistoryEntry = typeof MOCK_HISTORY[0];
+type HistoryEntry = {
+  id: string;
+  question: string;
+  answer: string;
+  sections: string[];
+  date: Date;
+  type: 'chat' | 'fir';
+};
 
 function formatDate(date: Date) {
   const now = new Date();
@@ -45,24 +40,22 @@ export default function HistoryPage() {
   const [page, setPage] = useState(1);
   const PER_PAGE = 8;
 
-  // Combine real chat messages with mock history
-  const chatEntries: HistoryEntry[] = chats.flatMap((chat) =>
-    chat.messages
-      .filter((m) => !m.isBot)
-      .map((m, i) => {
-        const botReply = chat.messages[chat.messages.indexOf(m) + 1];
-        return {
-          id: `${chat.id}-${i}`,
-          question: m.text,
-          answer: botReply?.text ?? 'No response recorded.',
-          sections: [],
-          date: chat.createdAt,
-          type: 'chat' as const,
-        };
-      })
-  );
-
-  const allEntries = [...chatEntries, ...MOCK_HISTORY]
+  const allEntries: HistoryEntry[] = chats
+    .flatMap((chat) =>
+      chat.messages
+        .filter((m) => !m.isBot)
+        .map((m, i) => {
+          const botReply = chat.messages[chat.messages.indexOf(m) + 1];
+          return {
+            id: `${chat.id}-${i}`,
+            question: m.text,
+            answer: botReply?.text ?? 'No response recorded.',
+            sections: [] as string[],
+            date: chat.createdAt,
+            type: 'chat' as const,
+          };
+        })
+    )
     .filter((e) => !deleted.has(e.id))
     .sort((a, b) => b.date.getTime() - a.date.getTime());
 

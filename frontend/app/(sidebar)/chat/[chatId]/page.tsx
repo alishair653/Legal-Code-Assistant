@@ -23,6 +23,7 @@ export default function ChatWithIdPage({ params }: { params: Promise<{ chatId: s
   const { isListening, transcript, startListening, stopListening, isSupported } = useSpeechRecognition();
 
   const chat = chats.find((c) => c.id === chatId);
+  const pendingHandled = useRef(false);
 
   useEffect(() => { if (chatId) setActiveChat(chatId); }, [chatId, setActiveChat]);
   useEffect(() => { if (transcript) setInput(transcript); }, [transcript]);
@@ -35,6 +36,49 @@ export default function ChatWithIdPage({ params }: { params: Promise<{ chatId: s
     ta.style.height = 'auto';
     ta.style.height = Math.min(ta.scrollHeight, 160) + 'px';
   }, [input]);
+
+  // If landing/voice search left an unanswered user message, call real API once
+  useEffect(() => {
+    if (!chatId || !chat || isLoading || pendingHandled.current) return;
+    const flag = sessionStorage.getItem(`pending-chat-${chatId}`);
+    if (!flag) return;
+    sessionStorage.removeItem(`pending-chat-${chatId}`);
+    const last = chat.messages[chat.messages.length - 1];
+    if (!last || last.isBot) return;
+    pendingHandled.current = true;
+
+    (async () => {
+      setIsLoading(true);
+      try {
+        const history = chat.messages
+          .slice(0, -1)
+          .slice(-4)
+          .map((m) => ({ role: m.isBot ? 'assistant' : 'user', content: m.text }));
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: last.text, conversationHistory: history }),
+        });
+        const data = await res.json();
+        if (res.status === 429) {
+          setLimitWarning(data.message);
+          addMessage(chatId, data.message, true);
+          return;
+        }
+        if (!res.ok) throw new Error(data.error ?? 'Something went wrong.');
+        addMessage(chatId, data.answer, true);
+        if (data.remainingQueries !== null && data.remainingQueries <= 3) {
+          setLimitWarning(`${data.remainingQueries} free queries remaining today.`);
+        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to get response.';
+        toast.error(message);
+        addMessage(chatId, 'Sorry, I could not process your request. Please try again.', true);
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+  }, [chatId, chat, isLoading, addMessage]);
 
   // Capture image from clipboard paste (Ctrl+V)
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
