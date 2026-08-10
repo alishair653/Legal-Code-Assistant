@@ -1,0 +1,18 @@
+# Keep Vercel uploads small — only app source
+node_modules
+**/node_modules
+.next
+**/.next
+.xenova-cache
+**/.xenova-cache
+.ai-ml-module
+ai-ml-module
+legal-data
+backend-core
+.git
+.venv
+**/__pycache__
+*.onnx
+*.safetensors
+.env*
+!.env.example

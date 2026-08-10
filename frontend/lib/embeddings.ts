@@ -1,21 +1,26 @@
 /**
  * Query embeddings — must match create_embeddings.py model (384-dim).
+ * Dynamic import keeps @xenova/transformers out of the static module graph
+ * (important for Vercel serverless builds).
  */
-import { pipeline, type FeatureExtractionPipeline } from '@xenova/transformers';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let extractorPromise: Promise<any> | null = null;
 
-let extractor: FeatureExtractionPipeline | null = null;
+async function getExtractor() {
+  if (!extractorPromise) {
+    extractorPromise = (async () => {
+      const { pipeline } = await import('@xenova/transformers');
+      return pipeline(
+        'feature-extraction',
+        'Xenova/paraphrase-multilingual-MiniLM-L12-v2'
+      );
+    })();
+  }
+  return extractorPromise;
+}
 
 export async function embedQuery(text: string): Promise<number[]> {
-  if (!extractor) {
-    extractor = (await pipeline(
-      'feature-extraction',
-      'Xenova/paraphrase-multilingual-MiniLM-L12-v2'
-    )) as FeatureExtractionPipeline;
-  }
-  // Cast options: @xenova/transformers types conflict String.normalize with boolean normalize
-  const output = await extractor(text, {
-    pooling: 'mean',
-    normalize: true,
-  } as { pooling: 'mean'; normalize: boolean });
+  const extractor = await getExtractor();
+  const output = await extractor(text, { pooling: 'mean', normalize: true });
   return Array.from(output.data as Float32Array);
 }
