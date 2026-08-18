@@ -104,10 +104,14 @@ ${ragContext}`
 
     // ── Save to DB + increment usage (logged-in users only) ───────────────────
     if (user) {
-      await Promise.all([
-        saveQuery(user.id, message ?? '[image]', answer),
-        incrementUsage(user.id),
-      ]);
+      try {
+        await Promise.all([
+          saveQuery(user.id, message ?? '[image]', answer),
+          incrementUsage(user.id),
+        ]);
+      } catch (dbErr) {
+        console.warn('[/api/chat] Failed to save query/usage (non-fatal):', dbErr);
+      }
     }
 
     // ── Response ──────────────────────────────────────────────────────────────

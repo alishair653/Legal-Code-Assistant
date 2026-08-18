@@ -7,11 +7,12 @@ export const groq = new Groq({
 });
 
 // ── Models ────────────────────────────────────────────────────────────────────
-// Text-only model for legal Q&A and FIR generation
-export const GROQ_TEXT_MODEL = 'llama-3.3-70b-versatile';
+// Text model for legal Q&A and FIR generation
+// llama-3.3-70b-versatile was retired 2026-08-16 — see Groq deprecations docs
+export const GROQ_TEXT_MODEL = 'openai/gpt-oss-120b';
 
-// Vision model — used when user attaches an image in chat
-export const GROQ_VISION_MODEL = 'llama-3.2-11b-vision-preview';
+// Image analysis — llama-3.2-11b-vision-preview was decommissioned; compound handles multimodal when available
+export const GROQ_VISION_MODEL = 'groq/compound';
 
 // ── System prompts ────────────────────────────────────────────────────────────
 
