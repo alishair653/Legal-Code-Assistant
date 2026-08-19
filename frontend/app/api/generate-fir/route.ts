@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { groq, FIR_SYSTEM_PROMPT, GROQ_TEXT_MODEL } from '@/lib/groq';
+import { groq, GROQ_TEXT_MODEL } from '@/lib/groq';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface FirDetails {
@@ -24,6 +24,23 @@ interface FirAnalysis {
   cognizable: boolean;
   bailable: boolean;
   punishment: string;        // Urdu punishment summary
+}
+
+const FIR_ANALYSIS_SYSTEM_PROMPT = `You are a Pakistani criminal law expert.
+Analyze incidents under the Pakistan Penal Code (PPC).
+Return ONLY a valid JSON object with keys: sections (string array), cognizable (boolean), bailable (boolean), punishment (string in Urdu).
+No markdown, no explanation outside the JSON.`;
+
+function parseFirAnalysis(raw: string): FirAnalysis {
+  const trimmed = raw.trim();
+  const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
+  const parsed = JSON.parse(jsonMatch?.[0] ?? trimmed) as Partial<FirAnalysis>;
+  return {
+    sections: Array.isArray(parsed.sections) ? parsed.sections.map(String) : [],
+    cognizable: parsed.cognizable ?? true,
+    bailable: parsed.bailable ?? false,
+    punishment: parsed.punishment ?? '',
+  };
 }
 
 // ── POST /api/generate-fir ───────────────────────────────────────────────────
@@ -63,15 +80,12 @@ Rules:
       temperature: 0.1, // low temperature for accurate section detection
       max_tokens: 400,
       messages: [
-        { role: 'system', content: FIR_SYSTEM_PROMPT },
+        { role: 'system', content: FIR_ANALYSIS_SYSTEM_PROMPT },
         { role: 'user', content: analysisPrompt },
       ],
-      response_format: { type: 'json_object' },
     });
 
-    const analysis: FirAnalysis = JSON.parse(
-      analysisRes.choices[0]?.message?.content ?? '{}'
-    );
+    const analysis = parseFirAnalysis(analysisRes.choices[0]?.message?.content ?? '{}');
 
     // ── Step 2: Generate formal FIR statement in URDU ──────────────────────
     const statementPrompt = `
@@ -99,7 +113,7 @@ Rules:
     const statementRes = await groq.chat.completions.create({
       model: GROQ_TEXT_MODEL,
       temperature: 0.4,
-      max_tokens: 700,
+      max_tokens: 2000, // gpt-oss uses reasoning tokens; 700 was exhausted before Urdu output
       messages: [
         {
           role: 'system',
