@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { ChatCompletion } from 'groq-sdk/resources/chat/completions';
 import { groq, GROQ_TEXT_MODEL } from '@/lib/groq';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -31,17 +32,75 @@ Analyze incidents under the Pakistan Penal Code (PPC).
 Return ONLY a valid JSON object with keys: sections (string array), cognizable (boolean), bailable (boolean), punishment (string in Urdu).
 No markdown, no explanation outside the JSON.`;
 
-function parseFirAnalysis(raw: string): FirAnalysis {
-  const trimmed = raw.trim();
-  const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
-  const parsed = JSON.parse(jsonMatch?.[0] ?? trimmed) as Partial<FirAnalysis>;
-  return {
-    sections: Array.isArray(parsed.sections) ? parsed.sections.map(String) : [],
-    cognizable: parsed.cognizable ?? true,
-    bailable: parsed.bailable ?? false,
-    punishment: parsed.punishment ?? '',
-  };
+const DEFAULT_SECTIONS: Record<string, string[]> = {
+  'Mobile Snatching': ['دفعہ 379 ت۔پ (چوری)', 'دفعہ 34 ت۔پ'],
+  'House Robbery': ['دفعہ 457 ت۔پ (چوری)', 'دفعہ 380 ت۔پ (چوری)'],
+  'Fraud / Cheating': ['دفعہ 420 ت۔پ (دھوکہ دہی)'],
+  Murder: ['دفعہ 302 ت۔پ (قتل)'],
+};
+
+function parseFirAnalysis(raw: string, type: string): FirAnalysis {
+  try {
+    const trimmed = raw.trim();
+    const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(jsonMatch?.[0] ?? trimmed) as Partial<FirAnalysis>;
+    return {
+      sections: Array.isArray(parsed.sections) && parsed.sections.length
+        ? parsed.sections.map(String)
+        : DEFAULT_SECTIONS[type] ?? ['دفعہ 379 ت۔پ'],
+      cognizable: parsed.cognizable ?? true,
+      bailable: parsed.bailable ?? false,
+      punishment: parsed.punishment ?? 'قانون کے مطابق سزا',
+    };
+  } catch {
+    return {
+      sections: DEFAULT_SECTIONS[type] ?? ['دفعہ 379 ت۔پ'],
+      cognizable: true,
+      bailable: false,
+      punishment: 'قانون کے مطابق سزا',
+    };
+  }
 }
+
+async function groqChatWithRetry(
+  params: Parameters<typeof groq.chat.completions.create>[0] & { stream?: false },
+  attempts = 3
+): Promise<ChatCompletion> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const result = await groq.chat.completions.create({ ...params, stream: false });
+      return result as ChatCompletion;
+    } catch (err) {
+      lastErr = err;
+      if (i < attempts - 1) {
+        await new Promise((r) => setTimeout(r, 800 * (i + 1)));
+      }
+    }
+  }
+  throw lastErr;
+}
+
+function buildFallbackStatement(
+  incident: string,
+  type: string,
+  details: FirDetails | undefined,
+  sections: string[]
+): string {
+  const station = details?.station ?? '____';
+  const district = details?.district ?? '____';
+  const name = details?.name ?? '____';
+  const father = details?.fatherName ? ` ولد ${details.fatherName}` : '';
+  const address = details?.address ?? '____';
+  const occurrence = details?.occurrence ?? '____';
+  const place = details?.place ?? '____';
+  const property = details?.property ?? '____';
+  const sectionText = sections.join('، ') || 'متعلقہ دفعات';
+
+  return `بجناب SHO صاحب تھانہ ${station} ضلع ${district}۔ جنابِ عالی! گزارش ہے کہ میں مسمی ${name}${father} سکونت ${address} کا رہائشی ہوں۔ مورخہ ${occurrence} کو ${place} پر ${type} کا واقعہ پیش آیا۔ ${incident.trim()} متعلقہ دفعات: ${sectionText}۔ چوری/نقصان شدہ مال: ${property}۔ لہٰذا جنابِ عالی سے استدعا ہے کہ میری درخواست درج رجسٹر کر کے میرے ساتھ قانونی کارروائی کی جائے۔ عین نوازش ہوگی۔ مستغیث`;
+}
+
+export const maxDuration = 60;
 
 // ── POST /api/generate-fir ───────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
@@ -75,17 +134,22 @@ Rules:
 - punishment: brief punishment summary in URDU
 `;
 
-    const analysisRes = await groq.chat.completions.create({
-      model: GROQ_TEXT_MODEL,
-      temperature: 0.1, // low temperature for accurate section detection
-      max_tokens: 400,
-      messages: [
-        { role: 'system', content: FIR_ANALYSIS_SYSTEM_PROMPT },
-        { role: 'user', content: analysisPrompt },
-      ],
-    });
-
-    const analysis = parseFirAnalysis(analysisRes.choices[0]?.message?.content ?? '{}');
+    let analysis: FirAnalysis;
+    try {
+      const analysisRes = await groqChatWithRetry({
+        model: GROQ_TEXT_MODEL,
+        temperature: 0.1,
+        max_tokens: 800,
+        messages: [
+          { role: 'system', content: FIR_ANALYSIS_SYSTEM_PROMPT },
+          { role: 'user', content: analysisPrompt },
+        ],
+      });
+      analysis = parseFirAnalysis(analysisRes.choices[0]?.message?.content ?? '{}', type);
+    } catch (analysisErr) {
+      console.warn('[/api/generate-fir] Analysis failed, using defaults:', analysisErr);
+      analysis = parseFirAnalysis('{}', type);
+    }
 
     // ── Step 2: Generate formal FIR statement in URDU ──────────────────────
     const statementPrompt = `
@@ -110,21 +174,29 @@ Rules:
 - صرف بیان کا متن لوٹائیں، کوئی اضافی عنوان، نمبر یا انگریزی وضاحت نہیں۔
 `;
 
-    const statementRes = await groq.chat.completions.create({
-      model: GROQ_TEXT_MODEL,
-      temperature: 0.4,
-      max_tokens: 2000, // gpt-oss uses reasoning tokens; 700 was exhausted before Urdu output
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are an expert Pakistani police FIR drafter. You write formal, court-style Urdu (Nastaliq) FIR statements. Output Urdu text only.',
-        },
-        { role: 'user', content: statementPrompt },
-      ],
-    });
+    let statement = '';
+    try {
+      const statementRes = await groqChatWithRetry({
+        model: GROQ_TEXT_MODEL,
+        temperature: 0.4,
+        max_tokens: 2500,
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are an expert Pakistani police FIR drafter. You write formal, court-style Urdu (Nastaliq) FIR statements. Output Urdu text only.',
+          },
+          { role: 'user', content: statementPrompt },
+        ],
+      });
+      statement = statementRes.choices[0]?.message?.content?.trim() ?? '';
+    } catch (statementErr) {
+      console.warn('[/api/generate-fir] Statement generation failed:', statementErr);
+    }
 
-    const statement = statementRes.choices[0]?.message?.content?.trim() ?? '';
+    if (!statement) {
+      statement = buildFallbackStatement(incident, type, details, analysis.sections);
+    }
 
     // ── Response ───────────────────────────────────────────────────────────
     return NextResponse.json({

@@ -433,8 +433,13 @@ export default function FIRGeneratorPage() {
         }),
       });
       setLoadingIdx(2); await new Promise(r => setTimeout(r, 600));
-      if (!res.ok) throw new Error('API error');
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(typeof data.error === 'string' ? data.error : 'API error');
+      }
+      if (!data.statement?.trim() && !Array.isArray(data.sections)) {
+        throw new Error('Incomplete FIR response from server');
+      }
 
       const now = new Date();
       const fmt = (d: Date) => d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -468,8 +473,9 @@ export default function FIRGeneratorPage() {
         punishment: data.punishment ?? '',
       });
       setStep(3);
-    } catch {
-      toast.error('FIR بنانے میں مسئلہ آیا۔ دوبارہ کوشش کریں۔');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'FIR بنانے میں مسئلہ آیا۔ دوبارہ کوشش کریں۔';
+      toast.error(message);
     } finally { setLoading(false); }
   };
 
